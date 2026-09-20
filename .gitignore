@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+
+# txt and md files
+/Fullstack ml aws app workflow
+/infra/s3/main-tf-info.md
+
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+
+# Terraform lock file
+# DO NOT ignore .terraform.lock.hcl
