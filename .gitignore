@@ -6,6 +6,15 @@ node_modules/
 .env.*
 !.env.example
 
+# Local datasets
+data/
+
+# ml data understanding notes
+ml/.venv
+ml/data_understanding.md
+ml/chat_pictures
+
+
 # OS
 .DS_Store
 
