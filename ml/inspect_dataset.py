@@ -34,7 +34,8 @@ print(df["TotalCharges"].unique()[:20])
 
 # 11 Empty strings in TotalCharges (not null but empty "")
 print("\nEmpty strings in TotalCharges:")
-print((df["TotalCharges"].str.strip() == "").sum()) # controlla quali valori, dopo aver tolto gli spazi, risultano stringhe vuote.
+print((df["TotalCharges"].str.strip() == "").sum()) # controlla quali valori, 
+# dopo aver tolto gli spazi, risultano stringhe vuote.
 
 # how many no and yes in churn column?
 print("\nTarget distribution:")
@@ -42,7 +43,8 @@ print(df["Churn"].value_counts())
 
 # make a percentual of this value count (73.463013 % no and 26.536987 yes )
 print("\nTarget distribution (%):")
-print(df["Churn"].value_counts(normalize=True) * 100) # con normalize=True si ottiene invece la frazione sul totale:
+print(df["Churn"].value_counts(normalize=True) * 100) # con normalize=True si 
+# ottiene invece la frazione sul totale:
 
 
 ## tre decisioni di preprocessing:
@@ -65,10 +67,10 @@ print(df["Churn"].value_counts(normalize=True) * 100) # con normalize=True si ot
 
 
 ## controllare le categorie presenti nelle colonne categoriche.
-print("\nCategorical columns and unique values:")
+print("\nCategorical columns and unique values:") # 
 
 # ricaviamo tutte le colonne con dati categorici:
-categoricals_columns = df.select_dtypes(include=["str"]).columns # shows all <StringArray> columns
+categoricals_columns = df.select_dtypes(include=["object"]).columns # shows all <StringArray> columns
 print(categoricals_columns)
 print("\nnr categorical columns:")
 print(len(categoricals_columns))
@@ -127,15 +129,15 @@ print(
 
 ## transform TotalCharges empty data "" to 0 to perform .describe() on the column:
 
-# create a copy of the dataset:
+# create a copy of the dataset. (lascia sempre i dati originali invariati, e fai le trasformazioni su una copia):
 df_analysis = df.copy()
 
-df_analysis["TotalCharges"] = pd.to_numeric(
+df_analysis["TotalCharges"] = pd.to_numeric( # Convert argument to a numeric type.
     df_analysis["TotalCharges"],
     errors="coerce" # sets the "" values to NAN
 )
 
-print(df_analysis["TotalCharges"].isna().sum())
+print(df_analysis["TotalCharges"].isna().sum()) # 11
 
 # check is nan values:
 nan_values = df_analysis["TotalCharges"].isna()
@@ -188,5 +190,103 @@ print("\n=== SeniorCitizen: binary categorical ===") # 0 and 1 values to describ
 print("\nPercentages:")
 print(df["SeniorCitizen"].value_counts(normalize=True) * 100) # percentage of the SeniorCitizen
 
-#  python inspect_dataset.py
 
+# Analisi degli outlier nelle variabili numeriche
+
+print("=== TASK 2: OUTLIER ANALYSIS ===")
+
+numeric_features = df_analysis.select_dtypes(include="number").columns.drop("SeniorCitizen") # SeniorCitizen perche non ci sono outliers in una colonna composta da 0-1
+numeric_features # check SeniorCitizen is dropped
+
+# calcolo Iqr per verificare se ci sono eventuali outliers:for column in numeric_features: # i dati centrali
+for column in numeric_features: # i dati centrali
+    Q1 = df_analysis[column].quantile(0.25) # df_analysis[column] ritorna righa index e value della colonna, mentre .quantile(0.25) filtra solo il qualtile inferiore (0.25) 
+    Q3 = df_analysis[column].quantile(0.75)
+
+    IQR = Q3 - Q1
+
+    lower_bound = Q1 - 1.5*IQR
+    upper_bound  = Q3 + 1.5*IQR
+
+    outliers = df_analysis[
+        (df_analysis[column] < lower_bound) |
+        (df_analysis[column] > upper_bound)
+    ]
+
+    # no outliers found. Nessun valore di nessuna delle colonne del lop sfora il calcolo iqr
+    
+    print(f"\n--- {column} ---")
+    print(f"Q1: {Q1:.2f}")
+    print(f"Q3: {Q3:.2f}")
+    print(f"IQR: {IQR:.2f}")
+    print(f"Lower bound: {lower_bound:.2f}")
+    print(f"Upper bound: {upper_bound:.2f}")
+    # print(f"outliers: {(outliers)}")
+    print(f"Number of outliers: {len(outliers)}")
+    print(f"Percentage: {len(outliers) / len(df_analysis) * 100:.2f}%")
+
+# ---------------------------------
+
+# Task 3 -> Analisi delle variabili categoriche
+
+# without ['customerID', SeniorCitizen, 'TotalCharges']
+# Ps categorical_features dovrebbe contenere le feature categoriche che utilizzeremo 
+# per predire Churn, per questo churn non la inseriamo pur essendo categorica.
+# Churn verrà analizzato separatamente per sapere: 
+# distribuzione Yes/No
+# percentuali
+# relazione con le altre variabili
+
+categorical_features = [ 
+    "gender",
+    "Partner",
+    "Dependents",
+    "PhoneService",
+    "MultipleLines",
+    "InternetService",
+    "OnlineSecurity",
+    "OnlineBackup",
+    "DeviceProtection",
+    "TechSupport",
+    "StreamingTV",
+    "StreamingMovies",
+    "Contract",
+    "PaperlessBilling",
+    "PaymentMethod"
+]
+
+for columns in categorical_features:
+    print(f"\n--- {columns} ---")
+
+    print("Number of unique values:")
+    print(df_analysis[columns].nunique())
+
+    print("Values:")
+    print(df_analysis[columns].value_counts())
+
+
+print("=== CHECK CATEGORICAL WHITESPACE ===")
+# importante verificare se ci sono categorie uguali ma scritte diversamente, ad esempio con aggiunte 
+# di spazzi ("yes" e " Yes") oppure con Upper/LowerCase ("yes" e "Yes"). questo potrebbe creare colonne aggiuntive
+# quando usiamo OneHotEncoder, e confondere il modello. le function df_analysis[column].unique() e .valueCounts
+#  gia' ci mostra se ci sono problemi del genere, ma applica queste ulteriori misure di sicurezza 
+for columns in categorical_features:
+
+    values = df_analysis[columns].astype("string")
+
+    # Conta i valori che cambiano dopo la rimozione degli spazi (" yes " != "yes" -> true)
+    whitespace_count = (values != values.str.strip()).sum()
+
+    # 2. Normalizzazione temporanea. Porta tutte le values in Lowercase
+    # normalized = values.str.strip().str.lower()
+
+    # check lower case as well
+
+    print(f"\n--- {columns} ---")
+    print(f"Values with leading/trailing spaces: {whitespace_count}")
+    
+    
+    
+
+
+   
