@@ -11,10 +11,8 @@ data/
 
 # ml data understanding notes
 ml/.venv
-ml/data_understanding.md
-ml/chat_pictures
-ml/images
 ml/data_analysy_and_tasks
+ml/Preprocessing_tree_models
 
 
 # OS
