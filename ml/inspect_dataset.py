@@ -125,7 +125,7 @@ print(
 # 2)Trasformare il vuoto in 0 ✅ = Questa è un'ipotesi molto più coerente perche effettivamente il Totalcharges 
 # cliente di questi nuovi clienti e' = 0
 
-
+# --------------
 
 ## transform TotalCharges empty data "" to 0 to perform .describe() on the column:
 
@@ -195,7 +195,7 @@ print(df["SeniorCitizen"].value_counts(normalize=True) * 100) # percentage of th
 
 print("=== TASK 2: OUTLIER ANALYSIS ===")
 
-numeric_features = df_analysis.select_dtypes(include="number").columns.drop("SeniorCitizen") # SeniorCitizen perche non ci sono outliers in una colonna composta da 0-1
+numeric_features = df_analysis.select_dtypes(include="number").columns.drop("SeniorCitizen") # droppiamo SeniorCitizen perche non ci sono outliers in una colonna composta da 0-1
 numeric_features # check SeniorCitizen is dropped
 
 # calcolo Iqr per verificare se ci sono eventuali outliers:for column in numeric_features: # i dati centrali
@@ -436,5 +436,170 @@ for column in numeric_features:
     print(
         df_analysis.groupby("Churn")[column].describe()
     )
+
 # confronta le distribuzioni delle variabili numeriche tra i due gruppi di Churn.
 # desc in task5+.md
+
+# TASK 5.5 — Test statistico sulle feature numeriche
+
+from scipy.stats import mannwhitneyu
+
+print("=== TASK 5.5: MANN-WHITNEY U TEST ===")
+
+for column in numeric_features:
+
+    group_no = df_analysis.loc[
+        df_analysis["Churn"] == "No",
+        column
+    ]
+
+    group_yes = df_analysis.loc[
+        df_analysis["Churn"] == "Yes",
+        column
+    ]
+
+    statistic, p_value = mannwhitneyu(
+        group_no,
+        group_yes,
+        alternative="two-sided"
+    )
+
+    print(f"\n--- {column} ---")
+    print(f"Mann-Whitney U statistic: {statistic:.2f}")
+    print(f"p-value: {p_value:.6g}")
+
+# --------
+
+# TASK 5.6 — Visualizzazione delle feature numeriche rispetto a Churn
+
+import matplotlib.pyplot as plt
+
+for column in numeric_features:
+    plt.figure(figsize=(8,5)) 
+
+    df_analysis.boxplot(
+        column=column,
+        by="Churn"
+    )
+
+    plt.title(f"{column} vs Churn")
+    plt.suptitle("")
+    plt.xlabel("Churn")
+    plt.ylabel(column)
+
+    plt.show()
+
+
+# Le distribuzioni delle tre feature numeriche mostrano differenze visibili 
+# tra i gruppi Churn = No e Churn = Yes, coerenti con le differenze già 
+# osservate nelle statistiche descrittive e nel Mann–Whitney U test
+
+# ---------
+
+# TASK 5.7 — Correlazione tra le feature numeriche
+
+print("=== TASK 5.7: CORRELAZIONE TRA FEATURE NUMERICHE ===")
+
+correlation_matrix = df_analysis[numeric_features].corr()
+print(correlation_matrix)
+
+# tenure e TotalCharges hanno una correlazione molto alta (0.8262), anche
+# come MonthlyCharges e TotalCharges hanno una correlazione abbastanza forte
+
+
+# ----------
+
+# TASK 5.8 — Visualizzazione delle correlazioni
+
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+
+# plt.figure(figsize=(8, 6))
+
+# sns.heatmap(
+#     correlation_matrix,
+#     annot=True,
+#     fmt=".2f",
+#     cmap="coolwarm",
+#     vmin=-1,
+#     vmax=1
+# )
+
+# plt.title("Correlation Matrix - Numeric Features")
+# plt.show()
+
+# ------------
+
+# TASK 5.9 — Controllo delle feature ridondanti / logicamente dipendenti
+
+# Qui non facciamo ancora preprocessing. Vogliamo capire se nel dataset esistono
+# feature che rappresentano informazioni quasi duplicate o fortemente condizionate 
+# da un'altra feature.
+
+print("=== TASK 5.9: LOGICAL DEPENDENCIES ===")
+
+internet_features = [
+    "OnlineSecurity",
+    "OnlineBackup",
+    "DeviceProtection",
+    "TechSupport",
+    "StreamingTV",
+    "StreamingMovies"
+]
+
+for column in internet_features:
+
+    print(f"\n--- {column} when InternetService = No ---")
+
+    print(
+        df_analysis.loc[
+            df_analysis["InternetService"] == "No", # id nr righe filtrate dove InternetService = No
+            column # colonne
+        ].value_counts()
+    )
+
+# La features InternetService con value "No" e' correlata con queste altre features. Dove e' no in una e' non nelle altre 
+
+print("=== CHECK: PhoneService -> MultipleLines ===")
+
+print(
+    df_analysis.loc[
+        df_analysis["PhoneService"] == "No",
+        "MultipleLines"
+    ].value_counts()
+)
+# "No phone service" è quindi una categoria semanticamente coerente, non un valore mancante.
+
+# ----------
+
+# TASK 5.10 — Controllo finale di coerenza del dataset 
+# Un ultimo sguardo ai dati per assicurarci che non siano rimaste anomalie
+#  evidenti nelle colonne categoriche e numeriche
+
+print("=== TASK 5.10: FINAL DATA CONSISTENCY CHECK ===")
+
+print("\n--- Shape ---")
+print(df_analysis.shape)
+
+print("\n--- Missing values ---")
+print(df_analysis.isna.sum())
+
+
+print("\n--- Numeric values below zero ---")
+print(
+    df_analysis[numeric_features]
+    .lt(0) # lt stands for les than
+    .sum()
+)
+
+
+print("\n--- Empty categorical values ---")
+for column in categorical_features:
+    print(f'empty categorical value find in {column}:')
+    empty_count = (df_analysis[column].str.strip() == "").sum()
+
+    print(f"{column}: {empty_count} ")
+
+
+print("\n--- Target values ---")
+print(df_analysis['Churn'].value_counts())
