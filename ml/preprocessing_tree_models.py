@@ -839,3 +839,176 @@ xgb_subsample_results # subsample=0.8
 
 # ---------
 # colsample_bytree
+
+xgb_colsample_results = []
+
+for colsample in [0.6, 0.8, 1.0]:
+
+    model = XGBClassifier(
+        objective="binary:logistic",
+        eval_metric="logloss",
+        n_estimators=200,
+        max_depth=3,
+        learning_rate=0.05,
+        min_child_weight=10,
+        subsample=0.8,
+        colsample_bytree=colsample,
+        random_state=42
+    )
+
+    model.fit(
+        X_train_processed,
+        y_train
+    )
+
+    y_pred = model.predict(X_test_processed)
+    y_proba = model.predict_proba(X_test_processed)[:, 1]
+
+    xgb_colsample_results.append({
+        "colsample_bytree": colsample,
+        "Accuracy": accuracy_score(y_test, y_pred),
+        "Precision": precision_score(y_test, y_pred),
+        "Recall": recall_score(y_test, y_pred),
+        "F1": f1_score(y_test, y_pred),
+        "ROC-AUC": roc_auc_score(y_test, y_proba)
+    })
+
+xgb_colsample_results = pd.DataFrame(xgb_colsample_results)
+
+xgb_colsample_results # Scelta: colsample_bytree=1.0
+
+
+# --------
+
+# Tuning XGBoost finito per ora.
+
+# Valutare XGBoost tuned
+
+xgb_tuned_model = XGBClassifier(
+    objective="binary:logistic",
+    eval_metric="logloss",
+    n_estimators=200,
+    max_depth=3,
+    learning_rate=0.05,
+    min_child_weight=10,
+    subsample=0.8,
+    colsample_bytree=1.0,
+    random_state=42
+)
+
+xgb_tuned_model.fit(
+    X_train_processed,
+    y_train
+)
+
+y_pred_xgb_tuned = xgb_tuned_model.predict(X_test_processed)
+
+y_proba_xgb_tuned = xgb_tuned_model.predict_proba(
+    X_test_processed
+)[:, 1]
+
+xgb_tuned_results = pd.DataFrame({
+    "Metric": [
+        "Accuracy",
+        "Precision",
+        "Recall",
+        "F1",
+        "ROC-AUC"
+    ],
+    "Baseline": [
+        accuracy_xgb,
+        precision_xgb,
+        recall_xgb,
+        f1_xgb,
+        roc_auc_xgb
+    ],
+    "Tuned": [
+        accuracy_score(y_test, y_pred_xgb_tuned),
+        precision_score(y_test, y_pred_xgb_tuned),
+        recall_score(y_test, y_pred_xgb_tuned),
+        f1_score(y_test, y_pred_xgb_tuned),
+        roc_auc_score(y_test, y_proba_xgb_tuned)
+    ]
+})
+
+# xgb_tuned_results
+print(xgb_tuned_results)
+
+
+# ---------
+# Matrice di confusione di XGBoost tuned
+
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+import matplotlib.pyplot as plt
+
+cm_xgb_tuned = confusion_matrix(
+    y_test,
+    y_pred_xgb_tuned
+)
+
+print(cm_xgb_tuned)
+
+disp = ConfusionMatrixDisplay(
+    confusion_matrix=cm_xgb_tuned,
+    display_labels=["No Churn", "Churn"]
+)
+
+disp.plot()
+plt.title("XGBoost Tuned - Confusion Matrix")
+plt.show()
+
+
+# ---
+
+# Confronto diretto tra Random Forest tuned e XGBoost tuned
+
+
+final_model_comparison = pd.DataFrame({
+    "Model": [
+        "Random Forest Tuned",
+        "XGBoost Tuned"
+    ],
+    "Accuracy": [
+        accuracy_score(y_test, y_pred_rf_tuned),
+        accuracy_score(y_test, y_pred_xgb_tuned)
+    ],
+    "Precision": [
+        precision_score(y_test, y_pred_rf_tuned),
+        precision_score(y_test, y_pred_xgb_tuned)
+    ],
+    "Recall": [
+        recall_score(y_test, y_pred_rf_tuned),
+        recall_score(y_test, y_pred_xgb_tuned)
+    ],
+    "F1": [
+        f1_score(y_test, y_pred_rf_tuned),
+        f1_score(y_test, y_pred_xgb_tuned)
+    ],
+    "ROC-AUC": [
+        roc_auc_score(y_test, rf_tuned_model.predict_proba(X_test_processed)[:, 1]),
+        roc_auc_score(y_test, y_proba_xgb_tuned)
+    ]
+})
+
+final_model_comparison.sort_values(
+    by="F1",
+    ascending=False
+)
+
+
+# XGBoost tuned è il candidato migliore.
+
+#                  Model  Accuracy  Precision    Recall        F1   ROC-AUC
+# 1        XGBoost Tuned  0.805536   0.665563  0.537433  0.594675  0.848157
+# 0  Random Forest Tuned  0.804116   0.666667  0.524064  0.586826  0.841421
+
+# Non è ancora una decisione definitiva: i risultati provengono dal test set usato anche durante il tuning.
+
+
+# -------
+
+# Verificare la strategia di validazione
+
+# Usiamo la cross-validation sul training set per selezionare i parametri, lasciando il test set per la valutazione finale.
+
+from sklearn.pipeline import Pipeline
