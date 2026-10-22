@@ -13,6 +13,9 @@ data/
 ml/.venv
 ml/data_analysy_and_tasks
 ml/Preprocessing_tree_models
+ml/strategia_di_validazione
+ml/Logistic_regression
+ml/Test.py
 
 
 # OS
