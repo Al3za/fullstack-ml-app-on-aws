@@ -138,7 +138,7 @@ print(categorical_encoder)
 
 # --------------
 
-# TASK 6 — Costruire il ColumnTransformer
+# TASK 6 — Costruire il ColumnTransformer. Fondamentale per la Pipeline che andremo a creare
 
 from sklearn.compose import ColumnTransformer
 
@@ -637,14 +637,15 @@ plt.show()
 # tuning random forest completato per ora
 # ------------
 
-
+# ------------
 # Inizio tuning XGBoost
 
 # facciamo la stessa cosa fatta per Random Forest: prima analizziamo un parametro alla volta, mantenendo gli altri fissi.
 
-# Partiamo da n_estimators, che controlla il numero di alberi del modello.
+# Partiamo da n_estimators, che controlla il numero di alberi del modello:
 
-n_estimators = [100, 200, 500]
+#  n_estimators
+
 
 xgb_estimators_results = []
 
@@ -678,11 +679,49 @@ xgb_estimators_results = pd.DataFrame(xgb_estimators_results)
 
 xgb_estimators_results # 200 e' il nr di alberi favorito
 
+# ----------
+
+# early_stopping_rounds
+
+
+xgb_early_stopping_rounds_results = []
+
+for rounds in [10, 20, 30]:
+
+    model = XGBClassifier(
+        objective="binary:logistic",
+        eval_metric="logloss",
+        n_estimators=200,
+        early_stopping_rounds= rounds,
+        random_state=42
+    )
+
+    model.fit(
+        X_train_processed,
+        y_train,
+        
+        
+    )
+
+    y_pred = model.predict(X_test_processed)
+    y_proba = model.predict_proba(X_test_processed)[:, 1]
+
+    xgb_early_stopping_rounds_results.append({
+        "early_stopping_rounds": rounds,
+        "Accuracy": accuracy_score(y_test, y_pred),
+        "Precision": precision_score(y_test, y_pred),
+        "Recall": recall_score(y_test, y_pred),
+        "F1": f1_score(y_test, y_pred),
+        "ROC-AUC": roc_auc_score(y_test, y_proba)
+    })
+
+xgb_early_stopping_rounds_results = pd.DataFrame(xgb_early_stopping_rounds_results)
+
+xgb_early_stopping_rounds_results # 30 rounds e' il nr candidato
 
 # ----------
 
 # XGBoost: max_depth
-
 
 xgb_depth_results = []
 
@@ -692,13 +731,16 @@ for depth in [3, 5, 7, 10]:
         objective="binary:logistic",
         eval_metric="logloss",
         n_estimators=200,
+        early_stopping_rounds=30,
         max_depth=depth,
         random_state=42
     )
 
     model.fit(
         X_train_processed,
-        y_train
+        y_train,
+        eval_set=[(X_test_processed, y_test)],
+        verbose=False
     )
 
     y_pred = model.predict(X_test_processed)
@@ -730,6 +772,7 @@ for lr in [0.01, 0.05, 0.1, 0.2]:
         objective="binary:logistic",
         eval_metric="logloss",
         n_estimators=200,
+        early_stopping_rounds=30,
         max_depth=3,
         learning_rate=lr,
         random_state=42
@@ -737,7 +780,9 @@ for lr in [0.01, 0.05, 0.1, 0.2]:
 
     model.fit(
         X_train_processed,
-        y_train
+        y_train,
+        eval_set=[(X_test_processed, y_test)],
+        verbose=False
     )
 
     y_pred = model.predict(X_test_processed)
@@ -769,6 +814,7 @@ for mcw in [1, 3, 5, 10]:
         objective="binary:logistic",
         eval_metric="logloss",
         n_estimators=200,
+        early_stopping_rounds=30,
         max_depth=3,
         learning_rate=0.05,
         min_child_weight=mcw,
@@ -777,7 +823,9 @@ for mcw in [1, 3, 5, 10]:
 
     model.fit(
         X_train_processed,
-        y_train
+        y_train,
+        eval_set=[(X_test_processed, y_test)],
+        verbose=False
     )
 
     y_pred = model.predict(X_test_processed)
@@ -808,6 +856,7 @@ for subsample in [0.6, 0.8, 1.0]:
         objective="binary:logistic",
         eval_metric="logloss",
         n_estimators=200,
+        early_stopping_rounds=30,
         max_depth=3,
         learning_rate=0.05,
         min_child_weight=10,
@@ -817,7 +866,9 @@ for subsample in [0.6, 0.8, 1.0]:
 
     model.fit(
         X_train_processed,
-        y_train
+        y_train,
+        eval_set=[(X_test_processed, y_test)],
+        verbose=False
     )
 
     y_pred = model.predict(X_test_processed)
@@ -847,7 +898,8 @@ for colsample in [0.6, 0.8, 1.0]:
     model = XGBClassifier(
         objective="binary:logistic",
         eval_metric="logloss",
-        n_estimators=200,
+        n_estimators=200,      
+        early_stopping_rounds=30,
         max_depth=3,
         learning_rate=0.05,
         min_child_weight=10,
@@ -858,7 +910,9 @@ for colsample in [0.6, 0.8, 1.0]:
 
     model.fit(
         X_train_processed,
-        y_train
+        y_train,
+        eval_set=[(X_test_processed, y_test)],
+        verbose=False
     )
 
     y_pred = model.predict(X_test_processed)
@@ -880,7 +934,7 @@ xgb_colsample_results # Scelta: colsample_bytree=1.0
 
 # --------
 
-# Tuning XGBoost finito per ora.
+# Tuning "manuale" su XGBoost  finito per ora.
 
 # Valutare XGBoost tuned
 
@@ -888,6 +942,7 @@ xgb_tuned_model = XGBClassifier(
     objective="binary:logistic",
     eval_metric="logloss",
     n_estimators=200,
+    early_stopping_rounds=30,
     max_depth=3,
     learning_rate=0.05,
     min_child_weight=10,
@@ -898,7 +953,9 @@ xgb_tuned_model = XGBClassifier(
 
 xgb_tuned_model.fit(
     X_train_processed,
-    y_train
+    y_train,
+    eval_set=[(X_test_processed, y_test)],
+    verbose=False   
 )
 
 y_pred_xgb_tuned = xgb_tuned_model.predict(X_test_processed)
@@ -936,7 +993,7 @@ print(xgb_tuned_results)
 
 
 # ---------
-# Matrice di confusione di XGBoost tuned
+# Matrice di confusione di XGBoost "manuale" tuned
 
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
@@ -1010,5 +1067,714 @@ final_model_comparison.sort_values(
 # Verificare la strategia di validazione
 
 # Usiamo la cross-validation sul training set per selezionare i parametri, lasciando il test set per la valutazione finale.
+# Nota : 
+# Il test set e stato usato spesso durante il tuning dei modelli, risultando in una stima finale
+#  meno indipendente (ovvero piu' ottimistica). Il workflow corretto sarebbe suddividere i dati in
+#  train, test e validation, ma per questo progetto da portfolio non adoperiamo questo split.
+
+# -------
+
+# Crea la Pipeline per RandomForestClassifier
+
+# Creiamo la pipeline dove inseriamo il ColumnTransformer creato in precedenza, in modo da no avere
+# Data leakage durante la cross-validation k-fold
 
 from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+
+rf_pipeline = Pipeline([
+    ("preprocessor",preprocessor),
+    ("classifier",RandomForestClassifier(random_state=42)),
+])
+
+print(rf_pipeline)
+
+
+# -------
+# Preparare la ricerca degli iperparametri per Random Forest
+
+from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
+from scipy.stats import randint # permette di definire intervalli di valori interi da esplorare,
+# anziché elencare ogni valore possibile.
+
+# -----
+# Preparare la cross-validation
+
+from sklearn.model_selection import StratifiedKFold, cross_validate
+
+cv = StratifiedKFold(
+    n_splits=5,
+    shuffle=True,
+    random_state=42
+)
+# StratifiedKFold mantiene approssimativamente la stessa proporzione di clienti churn e non-churn in ogni fold.(73% / 26%) Si usa sempre con un dataset "sbilanciato"
+
+# -------
+# 4. Definire lo spazio di ricerca
+
+rf_param_distributions = {
+    "classifier__n_estimators": randint(100, 501),
+    "classifier__max_depth": [None, 5, 10, 15, 20, 30],
+    "classifier__min_samples_split": randint(2, 21),
+    "classifier__min_samples_leaf": randint(1, 11),
+    "classifier__max_features": ["sqrt", "log2", None]
+}
+
+# classifier__.. = il name del passagio definito nella pipeline. 
+# il doppio underscore indica a scikit-learn che il parametro appartiene al classificatore interno alla pipeline.
+
+# --- 
+# Configurare RandomizedSearchCV
+
+rf_search = RandomizedSearchCV(
+    estimator=rf_pipeline,
+    param_distributions=rf_param_distributions,
+    n_iter=30,
+    scoring="f1",
+    cv=cv,
+    random_state=42,
+    n_jobs=-1,
+    refit=True,
+    verbose=1,
+    return_train_score=False
+)
+
+print(rf_search)
+
+
+# ------
+# Eseguire il tuning della Random Forest
+
+
+rf_search.fit(X_train, y_train)
+
+# -------
+# Mostra iperparametri, F1 medio per fold e pipeline
+
+print("Migliori iperparametri:")
+print(rf_search.best_params_)
+
+print(f"\nMiglior F1 medio in CV: {rf_search.best_score_:.4f}")
+# Miglior F1 medio in CV: 0.5820
+
+
+best_rf_pipeline = rf_search.best_estimator_
+
+print("\nPipeline selezionata:")
+print(best_rf_pipeline)
+
+# --------
+
+# Misurare la stabilità dei risultati
+
+
+cv_results_rf = pd.DataFrame(rf_search.cv_results_)
+
+best_idx = rf_search.best_index_
+
+print("F1 medio:", round(cv_results_rf.loc[best_idx, "mean_test_score"], 4))
+print("Deviazione standard F1:", round(cv_results_rf.loc[best_idx, "std_test_score"], 4))
+
+print("\nF1 sui singoli fold:")
+for i in range(5):
+    score = cv_results_rf.loc[best_idx, f"split{i}_test_score"]
+    print(f"Fold {i + 1}: {score:.4f}")
+
+
+# --------
+
+# Ulteriore tuning manuale su Random forest di alcuni parametri sulla baseline dei parametri ottenuti con RandomizedSearchCV:
+
+# max_features: 
+
+from sklearn.base import clone # non modifichiamo ripetutamente la pipeline, creiamo invece una nuova pipeline per ogni configurazione, riutilizzando il preprocessor 
+
+cv = StratifiedKFold(
+    n_splits=5,
+    shuffle=True,
+    random_state=42
+)
+
+configs = {
+    "None": None,
+    "sqrt": "sqrt",
+    "log2": "log2"
+}
+
+results = []
+
+for name, max_features in configs.items():
+    model = RandomForestClassifier(
+        n_estimators=269,
+        max_depth=10,
+        min_samples_split=3,
+        min_samples_leaf=6,
+        max_features=max_features,
+        random_state=42,
+        n_jobs=1
+    )
+
+    pipeline = Pipeline([
+        ("preprocessor", clone(preprocessor)),
+        ("classifier", model)
+    ])
+
+    scores = cross_validate(
+        pipeline,
+        X_train,
+        y_train,
+        cv=cv,
+        scoring={
+            "f1": "f1",
+            "precision": "precision",
+            "recall": "recall"
+        },
+        n_jobs=-1
+    )
+
+    results.append({
+        "configurazione": name,
+        "F1 medio": scores["test_f1"].mean(),
+        "F1 std": scores["test_f1"].std(),
+        "Precision media": scores["test_precision"].mean(),
+        "Recall medio": scores["test_recall"].mean()
+    })
+
+results_df = pd.DataFrame(results)
+print(results_df.round(4).to_string(index=False))
+
+# ------
+
+# min_samples_split e min_samples_leaf: 
+
+
+# Stessa cross-validation utilizzata nell'esperimento precedente
+cv = StratifiedKFold(
+    n_splits=5,
+    shuffle=True,
+    random_state=42
+)
+
+# Valori da confrontare
+split_values = [3, 5, 10, 15]
+leaf_values = [2, 4, 6, 10]
+
+results = []
+
+for min_split in split_values:
+    for min_leaf in leaf_values:
+
+        model = RandomForestClassifier(
+            n_estimators=269,
+            max_depth=10,
+            min_samples_split=min_split, # 6 queste combinazioni portano a miglior recal, f1 e precision
+            min_samples_leaf=min_leaf, # 15
+            max_features=None,
+            random_state=42,
+            n_jobs=1
+        )
+
+        pipeline = Pipeline([
+            ("preprocessor", clone(preprocessor)),
+            ("classifier", model)
+        ])
+
+        scores = cross_validate(
+            pipeline,
+            X_train,
+            y_train,
+            cv=cv,
+            scoring={
+                "f1": "f1",
+                "precision": "precision",
+                "recall": "recall"
+            },
+            n_jobs=-1
+        )
+
+        results.append({
+            "min_samples_split": min_split,
+            "min_samples_leaf": min_leaf,
+            "F1 medio": scores["test_f1"].mean(),
+            "F1 std": scores["test_f1"].std(),
+            "Precision media": scores["test_precision"].mean(),
+            "Recall medio": scores["test_recall"].mean()
+        })
+
+# Ordiniamo le configurazioni per F1 medio decrescente
+results_df = pd.DataFrame(results)
+
+results_df = results_df.sort_values(
+    by="F1 medio",
+    ascending=False
+).reset_index(drop=True)
+
+print(results_df.round(4).to_string(index=False))
+
+
+
+# -------
+# -------
+# Consolizadione e Valutazione finale della Random Forest
+
+
+rf_final = Pipeline([
+    ("preprocessor", clone(preprocessor)),
+    ("classifier", RandomForestClassifier(
+        n_estimators=269,
+        max_depth=10,
+        min_samples_split=15,
+        min_samples_leaf=6,
+        max_features=None,
+        random_state=42,
+        n_jobs=-1
+    ))
+])
+
+# Addestramento esclusivamente sul training set
+rf_final.fit(X_train, y_train)
+
+print("Random Forest addestrata correttamente.")
+
+# ------
+from sklearn.metrics import (
+    classification_report
+)
+
+
+# Predizioni sul test set
+y_pred = rf_final.predict(X_test)
+
+# Probabilità di abbandono, utili per ROC-AUC
+y_proba = rf_final.predict_proba(X_test)[:, 1]
+
+# Metriche principali
+metrics_rf = {
+    "Accuracy": accuracy_score(y_test, y_pred),
+    "Precision": precision_score(y_test, y_pred, zero_division=0),
+    "Recall": recall_score(y_test, y_pred, zero_division=0),
+    "F1-score": f1_score(y_test, y_pred, zero_division=0),
+    "ROC-AUC": roc_auc_score(y_test, y_proba)
+}
+
+metrics_rf_df = pd.DataFrame(
+    metrics_rf.items(),
+    columns=["Metrica", "Valore"]
+)
+
+print(metrics_rf_df.round(4).to_string(index=False))
+
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+
+print("\nClassification Report:")
+print(classification_report(
+    y_test,
+    y_pred,
+    target_names=["No churn", "Churn"],
+    zero_division=0
+))
+
+# Random Forest Conclusa.
+
+# Importante_:
+# Ricordiamo che il test set era già stato consultato durante il tuning manuale precedente:
+# perciò questo confronto è utile per comprendere il comportamento dei modelli, ma non è una prova 
+# indipendente della loro superiorità.
+
+# -----------
+# -----------
+# -----------
+# -----------
+# -----------
+
+# Preparare la pipeline XGBoost
+
+# Ricordiamo che La pipeline applica il preprocessing e poi addestra XGBoost
+
+xgb_pipeline = Pipeline([
+    ("preprocessor", clone(preprocessor)),
+    ("classifier", XGBClassifier(
+        objective="binary:logistic",
+        eval_metric="logloss",
+        random_state=42,
+        n_jobs=1
+    ))
+])
+
+print("Pipeline XGBoost creata correttamente.")
+print(xgb_pipeline)
+
+
+# -----------
+# Definiamo la ricerca degli iperparametri con il metodo cross-validation(oof) e RandomizedSearchCV.
+# In questo modo si valutano le metriche direttamente sul train set, lasciando il test set "indipendente" per il test finale.
+# Cosi' non usiamo il test set per analizare il miglioramento delle metriche del modello ad ogni iperparametro modificato,
+# perche questo rende il test set "meno indipendente", portando le predizioni a risultare piu' ottimistiche  
+
+from scipy.stats import randint, uniform, loguniform
+
+xgb_param_distributions = {
+    "classifier__n_estimators": randint(100, 501),
+    "classifier__max_depth": randint(2, 8),
+    "classifier__learning_rate": loguniform(0.01, 0.2),
+    "classifier__min_child_weight": randint(1, 11),
+    "classifier__subsample": uniform(0.6, 0.4),
+    "classifier__colsample_bytree": uniform(0.6, 0.4),
+    "classifier__gamma": uniform(0, 2)
+}
+
+cv = StratifiedKFold(
+    n_splits=5,
+    shuffle=True,
+    random_state=42
+)
+
+xgb_search = RandomizedSearchCV(
+    estimator=xgb_pipeline, # trasforma le colonne categoriche con OneHotEncoder
+    param_distributions=xgb_param_distributions, # gli intervalli degli iperparametri che vogliamo analizzare per ottenere il miglior f1 score, come stabilito in basso
+    n_iter=30,
+    scoring="f1",
+    cv=cv,
+    random_state=42,
+    n_jobs=-1,
+    refit=True,
+    verbose=1,
+    return_train_score=False
+)
+
+xgb_search.fit(X_train,y_train)
+
+
+print("Migliori parametri:")
+print(xgb_search.best_params_)
+
+print("\nMiglior F1 medio in cross-validation:")
+print(round(xgb_search.best_score_, 4))
+
+# ---------
+# Ulteriore tuning "manuale" su XGBoost di alcuni parametri sulla baseline dei parametri ottenuti con RandomizedSearchCV:
+
+# min_child_weight: 
+
+cv = StratifiedKFold(
+    n_splits=5,
+    shuffle=True,
+    random_state=42
+)
+
+# Parametri migliori trovati da RandomizedSearchCV
+best_params = xgb_search.best_params_.copy()
+
+# Rimuoviamo il prefisso della Pipeline per costruire XGBClassifier
+xgb_params = {
+    key.replace("classifier__", ""): value
+    for key, value in best_params.items()
+}
+
+# controlla se i parametri sono corretti
+print(f"check params: {xgb_params} ")
+
+child_weight_values = [1, 3, 5, 7, 10, 12]
+results_xgb_manual = []
+
+for child_weight in child_weight_values:
+
+    params = xgb_params.copy()
+    params["min_child_weight"] = child_weight
+
+    model = XGBClassifier(
+        objective="binary:logistic",
+        eval_metric="logloss",
+        random_state=42,
+        n_jobs=1,
+        **params # i params scelti tramite Random
+    )
+
+    pipeline = Pipeline([
+        ("preprocessor", clone(preprocessor)),
+        ("classifier", model)
+    ])
+
+# Eseguiamo validazione oof con gli iperparametri trovati con RandomizedSearchCv, e facendo ulteriore tuning manuale su child_weight
+    scores = cross_validate( 
+        pipeline,
+        X_train,
+        y_train,
+        cv=cv,
+        scoring={
+            "f1": "f1",
+            "precision": "precision",
+            "recall": "recall"
+        },
+        n_jobs=-1
+    )
+
+    results_xgb_manual.append({
+        "min_child_weight": child_weight,
+        "F1 medio": scores["test_f1"].mean(),
+        "F1 std": scores["test_f1"].std(),
+        "Precision media": scores["test_precision"].mean(),
+        "Recall medio": scores["test_recall"].mean()
+    })
+
+results_xgb_manual_df = pd.DataFrame(results_xgb_manual)
+
+results_xgb_manual_df = results_xgb_manual_df.sort_values(
+    by="F1 medio",
+    ascending=False
+).reset_index(drop=True)
+
+print(results_xgb_manual_df.round(4).to_string(index=False))
+
+# min_child_weight=1 rimane la configurazione migliore
+
+# -------
+# -------# 
+
+# 1. Consolidiamo e addestriamo il modello finale
+
+# Utilizziamo direttamente xgb*search.best_estimator*, che contiene già la pipeline con il preprocessing
+# e i migliori parametri ed è già stato riaddestrato su tutto X_train grazie a refit=True.
+
+# Modello XGBoost consolidato
+xgb_final = xgb_search.best_estimator_
+
+print("Parametri del modello finale:")
+print(xgb_final.named_steps["classifier"].get_params())
+
+print("\nModello XGBoost consolidato correttamente.")
+
+
+# ------
+# 2. Calcoliamo metriche e confusion matrix
+y_pred_xgb = xgb_final.predict(X_test) # La pipeline si occuma delle trasformazioni delle colonne di X_test 
+
+# Probabilità della classe positiva: Churn = 1
+y_proba_xgb = xgb_final.predict_proba(X_test)[:,1] # possibile grazie alla metrica xgboost = objective="binary:logistic"
+
+# Metriche
+metrics_xgb = {
+    "Accuracy": accuracy_score(y_test,y_pred_xgb),
+    "Precision": precision_score(y_test, y_pred_xgb, zero_division=0),
+    "Recall": recall_score(y_test, y_pred_xgb, zero_division=0),
+    "F1-score": f1_score(y_test, y_pred_xgb, zero_division=0),
+    "ROC-AUC": roc_auc_score(y_test,y_proba_xgb)
+}
+
+metrics_xgb_df = pd.DataFrame(
+    metrics_xgb.items(),
+    columns=["Metrica", "Valore"]
+)
+
+print("METRICHE XGBOOST")
+print(metrics_xgb_df.round(4).to_string(index=False))
+
+print("\nCONFUSION MATRIX")
+print(confusion_matrix(y_test, y_pred_xgb))
+
+print("\nCLASSIFICATION REPORT")
+print(classification_report(
+    y_test,
+    y_pred_xgb,
+    target_names=["No churn", "Churn"],
+    zero_division=0
+))
+
+
+# XGBoost vince ancora e si candida come modello favorito sopra Random Forest
+
+# -----
+
+# Abbassiamo la soglia decisionale per aumentare i TP al minor costo di FP possibile.
+
+# Scegliamo la soglia usando le predizioni out-of-fold
+
+# Generiamo le probabilità out-of-fold
+
+
+from sklearn.model_selection import cross_val_predict
+
+
+# Ogni osservazione del training set viene predetta
+# da un modello che non ha visto quell'osservazione
+oof_proba = cross_val_predict(
+    clone(xgb_search.best_estimator_), # clone() crea una copia non addestrata del modello, mantenendo gli iperparametri selezionati. # cross_val_predict avvia addestramento del modello vergine clonato sui fold previsti dalla cross-validation.
+    X_train,
+    y_train,
+    cv=cv,
+    method="predict_proba", # Valutazione con predizioni OOF
+    n_jobs=-1
+)[:, 1]
+
+print("Predizioni out-of-fold generate:", len(oof_proba)) # lunghezza dei dati di taining
+
+# ----
+# confrontare le soglie
+
+
+thresholds = [0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50]
+
+threshold_results = []
+
+for threshold in thresholds:
+    y_pred_threshold = (oof_proba >= threshold).astype(int)
+
+    tn, fp, fn, tp = confusion_matrix(
+        y_train,
+        y_pred_threshold,
+        labels=[0, 1]
+    ).ravel()
+
+    threshold_results.append({
+        "Soglia": threshold,
+        "Recall": recall_score(y_train, y_pred_threshold),
+        "Precision": precision_score(
+            y_train, y_pred_threshold, zero_division=0
+        ),
+        "F1": f1_score(y_train, y_pred_threshold),
+        "TP": tp,
+        "FP": fp,
+        "FN": fn,
+        "TN": tn
+    })
+
+threshold_df = pd.DataFrame(threshold_results)
+
+print(threshold_df.round(4).to_string(index=False))
+
+# La soglia 0.35 offre il miglior F1 tra quelle testate e recupera più clienti a rischio rispetto
+# a 0.50, contenendo parte dei falsi positivi rispetto alle soglie più basse.
+
+# ------
+
+# Il prossimo passo e' applicare la soglia al test set:
+
+# Recall almeno del 70%, cercando di contenere gli FP
+
+threshold_candidates = threshold_df[
+    threshold_df["Recall"] >= 0.70
+].sort_values(
+    by=["FP", "Soglia"],
+    ascending=[True, False]
+)
+
+print(threshold_candidates.round(4).to_string(index=False))
+
+# ancora La soglia 0.35 offre miglior trade-off 
+
+# -------
+# valutare la soglia selezionata su test set
+
+# Probabilità di churn sul test set
+y_test_proba = xgb_final.predict_proba(X_test)[:, 1]
+
+# Soglia selezionata tramite OOF
+threshold = 0.35
+y_test_pred_035 = (y_test_proba >= threshold).astype(int)
+
+# Metriche
+print("Soglia:", threshold)
+print("Accuracy:", round(accuracy_score(y_test, y_test_pred_035), 4))
+print("Precision:", round(precision_score(y_test, y_test_pred_035), 4))
+print("Recall:", round(recall_score(y_test, y_test_pred_035), 4))
+print("F1-score:", round(f1_score(y_test, y_test_pred_035), 4))
+print("ROC-AUC:", round(roc_auc_score(y_test, y_test_proba), 4))
+
+print("\nMatrice di confusione:")
+print(confusion_matrix(y_test, y_test_pred_035))
+
+print("\nClassification report:")
+print(classification_report(y_test, y_test_pred_035))
+
+
+# --------
+# --------
+# --------
+
+# ora proviamo ad aggiungere il parametro scale_pos_weight
+
+
+import pandas as pd
+
+scale_pos_weights = [1.0, 1.5, 2.0, 2.8]
+
+weight_results = []
+
+for weight in scale_pos_weights:
+    model = clone(xgb_search.best_estimator_)
+
+    model.set_params(
+        classifier__scale_pos_weight=weight
+    )
+
+    scores = cross_validate(
+        model,
+        X_train,
+        y_train,
+        cv=cv,
+        scoring={
+            "precision": "precision",
+            "recall": "recall",
+            "f1": "f1",
+            "roc_auc": "roc_auc"
+        },
+        n_jobs=-1
+    )
+
+    weight_results.append({
+        "scale_pos_weight": weight,
+        "Precision_mean": scores["test_precision"].mean(),
+        "Recall_mean": scores["test_recall"].mean(),
+        "F1_mean": scores["test_f1"].mean(),
+        "ROC_AUC_mean": scores["test_roc_auc"].mean(),
+        "F1_std": scores["test_f1"].std()
+    })
+
+weight_results_df = pd.DataFrame(weight_results)
+
+print( 
+    weight_results_df
+    .sort_values("F1_mean", ascending=False)
+    .round(4)
+    .to_string(index=False)
+)
+
+
+print('check sopra')
+# Confronto dei modelli
+
+model_comparison = pd.DataFrame([
+    {
+        "Modello": "Random Forest",
+        "Soglia": 0.50,
+        "Accuracy": 0.7956,
+        "Precision": 0.6378,
+        "Recall": 0.5321,
+        "F1-score": 0.5802,
+        "ROC-AUC": 0.8392
+    },
+    {
+        "Modello": "XGBoost",
+        "Soglia": 0.50,
+        "Accuracy": 0.8048,
+        "Precision": 0.6667,
+        "Recall": 0.5294,
+        "F1-score": 0.5902,
+        "ROC-AUC": 0.8472
+    },
+    {
+        "Modello": "XGBoost",
+        "Soglia": 0.35,
+        "Accuracy": 0.7800,
+        "Precision": 0.5684,
+        "Recall": 0.7112,
+        "F1-score": 0.6318,
+        "ROC-AUC": 0.8472
+    }
+])
+
+print(model_comparison.round(4).to_string(index=False))
+
+# XGBoost vinvce su Random Forest al momento.
+# Da mensionare che i parametri class_weight="balanced"(RF) e scale_pos_weight(XGB) non sono stati testati, da testare in futuro

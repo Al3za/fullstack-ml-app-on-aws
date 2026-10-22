@@ -20,13 +20,15 @@ print(df.dtypes)
 print("\nMissing values:")
 print(df.isnull().sum())
 
+
+
 print("\ncharges:")
 print(df["TotalCharges"].dtype)
 
 print("\ncharges should be numeric but is str:")
 print(df["TotalCharges"])
 
-#analisi sulle colonne TotalCharges e churn
+# Analisi sulle colonne TotalCharges e churn
 # mostra 20 valori univoci dalla colonna TotalCharges. 
 print("\nUnique values in TotalCharges:")
 print(df["TotalCharges"].unique()[:20])
@@ -57,7 +59,7 @@ print(df["Churn"].value_counts(normalize=True) * 100) # con normalize=True si
 
 
 # riguardo il target:
-# 2. Il target è sbilanciato, ma non in modo estremo, qundi il parametro accuracy da solo e' forviante, quindi andremo ad usare anche metriche come:
+# 2. Il target è sbilanciato, ma non in modo estremo (74%-26%). Il parametro accuracy da solo e' forviante, quindi andremo ad usare anche metriche come:
 
 # precision
 # recall
@@ -82,7 +84,8 @@ for column in categoricals_columns:
     print((df[column].str.strip() == "").sum())
 
 
-## alcune features binarie:gender
+## alcune features binarie:
+# gender
 # Partner
 # Dependents
 # PhoneService
@@ -94,7 +97,7 @@ for column in categoricals_columns:
 # PaymentMethod 
 
 
-# check teanure and other columns for the 11 clients with empty("") TotalCharges values:
+# Controllo dati degli 11 clienti con TotalCharges = ""
 
 empty_total_charges = df['TotalCharges'].str.strip() == ""
 
@@ -104,10 +107,10 @@ print(
         empty_total_charges,
         ["customerID","tenure", "MonthlyCharges", "TotalCharges", "Churn"]
     ]
-) 
+) # Trovata relazione con tenure 
 
 
-# make sure that tenure = 0 and TotalCharges == "" are related:
+# Assicuriamoci che tenure = 0 e TotalCharges == "" sono correlati  
 print("\nCustomers with tenure = 0:")
 print(
     df.loc[
@@ -127,11 +130,12 @@ print(
 
 # --------------
 
-## transform TotalCharges empty data "" to 0 to perform .describe() on the column:
+## Trasforma i dati mancanti di TotalCharges = "" con il valore 0 per poter fare  .describe() sulle colonne:
 
-# create a copy of the dataset. (lascia sempre i dati originali invariati, e fai le trasformazioni su una copia):
+# crea una copia del dataset. (lascia sempre i dati originali invariati, e fai le trasformazioni su una copia):
 df_analysis = df.copy()
 
+# Trasforma i dati mancanti di TotalCharges
 df_analysis["TotalCharges"] = pd.to_numeric( # Convert argument to a numeric type.
     df_analysis["TotalCharges"],
     errors="coerce" # sets the "" values to NAN
@@ -190,6 +194,7 @@ print("\n=== SeniorCitizen: binary categorical ===") # 0 and 1 values to describ
 print("\nPercentages:")
 print(df["SeniorCitizen"].value_counts(normalize=True) * 100) # percentage of the SeniorCitizen
 
+# ----
 
 # Analisi degli outlier nelle variabili numeriche
 
@@ -198,8 +203,9 @@ print("=== TASK 2: OUTLIER ANALYSIS ===")
 numeric_features = df_analysis.select_dtypes(include="number").columns.drop("SeniorCitizen") # droppiamo SeniorCitizen perche non ci sono outliers in una colonna composta da 0-1
 numeric_features # check SeniorCitizen is dropped
 
-# calcolo Iqr per verificare se ci sono eventuali outliers:for column in numeric_features: # i dati centrali
-for column in numeric_features: # i dati centrali
+# Calcolo Iqr per verificare se ci sono eventuali outliers o valori estremi: 
+
+for column in numeric_features:
     Q1 = df_analysis[column].quantile(0.25) # df_analysis[column] ritorna righa index e value della colonna, mentre .quantile(0.25) filtra solo il qualtile inferiore (0.25) 
     Q3 = df_analysis[column].quantile(0.75)
 
@@ -229,7 +235,6 @@ for column in numeric_features: # i dati centrali
 
 # Task 3 -> Analisi delle variabili categoriche
 
-# without ['customerID', SeniorCitizen, 'TotalCharges']
 # Ps categorical_features dovrebbe contenere le feature categoriche che utilizzeremo 
 # per predire Churn, per questo churn non la inseriamo pur essendo categorica.
 # Churn verrà analizzato separatamente per sapere: 
@@ -276,8 +281,7 @@ for columns in categorical_features:
      
 # -------------------
 
-# TASK 4 — Target Analysis
-
+# TASK 4 — Analisi del Target 
    
 print("=== TASK 4: TARGET ANALYSIS ===")
 
@@ -348,11 +352,9 @@ for column in categorical_features:
 # il contratto mensile causi il churn.
 
 
-# un passo ulteriore:facciamo una piccola verifica quantitativa sulle associazioni categoriche: quanto sono statisticamente associate a Churn?
 
-# Useremo il Chi-square test. Non serve ancora conoscere tutta la statistica dietro al test: per ora ci 
-# interessa capire perché lo usiamo.
-
+# Facciamo una piccola verifica quantitativa sulle associazioni categoriche: quanto sono statisticamente associate a Churn?
+# Useremo il Chi-square test. 
 
 # -----------------
 
@@ -419,11 +421,13 @@ for column in categorical_features:
     print(f"\n--- {column} ---")
     print(f"Cramér's V: {cramer_v:.4f}")
 
-# descrizione output in Task5.md
-
+# Alcune var categoriche presentano una possibila' associativa con il target non indifferente.  (Descrizione piu' accurata dell' output in Task5.md)
 # -------------
 
 print("=== TASK 5.4: NUMERIC FEATURES vs CHURN ===")
+
+# Confronto di media e mediana di tenure, MonthlyCharges e TotalCharges tra i gruppi Churn = No e Churn = Yes.
+
 
 numeric_features = [
     "tenure",
@@ -437,10 +441,12 @@ for column in numeric_features:
         df_analysis.groupby("Churn")[column].describe()
     )
 
-# confronta le distribuzioni delle variabili numeriche tra i due gruppi di Churn.
+# Differenze significative rilevate tra le distribuzioni dei dati delle features verso il taget
 # desc in task5+.md
 
+# -----
 # TASK 5.5 — Test statistico sulle feature numeriche
+# Verifichiamo se le differenze osservate sono statisticamente significative
 
 from scipy.stats import mannwhitneyu
 
@@ -467,6 +473,8 @@ for column in numeric_features:
     print(f"\n--- {column} ---")
     print(f"Mann-Whitney U statistic: {statistic:.2f}")
     print(f"p-value: {p_value:.6g}")
+
+# Rilevata una evidenza statistica di una differenza tra le distribuzioni dei due gruppi Yes e no. 
 
 # --------
 
@@ -558,7 +566,7 @@ for column in internet_features:
         ].value_counts()
     )
 
-# La features InternetService con value "No" e' correlata con queste altre features. Dove e' no in una e' non nelle altre 
+# La features InternetService con value "No" e' correlata con queste altre features elencate sopra. Dove "No" in una, e' "No" nelle altre. 
 
 print("=== CHECK: PhoneService -> MultipleLines ===")
 
@@ -568,7 +576,7 @@ print(
         "MultipleLines"
     ].value_counts()
 )
-# "No phone service" è quindi una categoria semanticamente coerente, non un valore mancante.
+# "No phone service" è quindi una categoria semanticamente coerente, e non indica un valore mancante.
 
 # ----------
 
