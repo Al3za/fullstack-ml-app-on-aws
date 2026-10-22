@@ -1,32 +1,11 @@
 # TREE_MODELS
 
 import pandas as pd
+from dataset import df_analysis, X, y, numeric_features, binary_features, categorical_features
+from preprocessing import make_categorical_encoder, make_preprocessor
+from data_split import X_train, X_test, y_train, y_test
 
-
-DATA_PATH = "../data/WA_Fn-UseC_-Telco-Customer-Churn.csv"
-
-df = pd.read_csv(DATA_PATH) # i dati raw non modificati
-
-df_analysis = df.copy() # dati modificati
-
-# Transform TotalCharges empty data "" to 0 to perform  on the column:
-
-df_analysis["TotalCharges"] = pd.to_numeric( # Convert argument to a numeric type.
-    df_analysis["TotalCharges"],
-    errors="coerce" # sets the "" values to NAN
-)
-
-df_analysis['TotalCharges'] = df_analysis['TotalCharges'].fillna(0)
-
-print((df_analysis['TotalCharges'] == 0).sum())
-
-print("=== PREPROCESSING - TASK 1: FEATURE PREPARATION ===")
-
-target = "Churn"
-id_column = "customerID"
-
-X = df_analysis.drop(columns=[target,id_column])
-y = df_analysis[target]
+print("=== DUBBLE CHECK IMPORTED X,y DATA ===")
 
 print("\n--- X ---")
 print(X.shape)
@@ -53,36 +32,7 @@ print(X.isna().sum().sort_values(ascending=False))
 
 # ---------
 # TASK 3 — Separazione delle feature numeriche e categoriche
-
-print("=== PREPROCESSING - TASK 3: FEATURE GROUPS ===")
-
-numeric_features = [
-    "tenure",
-    "MonthlyCharges",
-    "TotalCharges"
-]
-
-binary_features = [
-    "SeniorCitizen"
-]
-
-categorical_features = [
-    "gender",
-    "Partner",
-    "Dependents",
-    "PhoneService",
-    "MultipleLines",
-    "InternetService",
-    "OnlineSecurity",
-    "OnlineBackup",
-    "DeviceProtection",
-    "TechSupport",
-    "StreamingTV",
-    "StreamingMovies",
-    "Contract",
-    "PaperlessBilling",
-    "PaymentMethod"
-]
+print("=== DUBBLE CHECK IMPORTED FEATURE GROUPS ===")
 
 print("Numeric features:")
 print(numeric_features)
@@ -102,15 +52,7 @@ print("Numero feature categoriche:", len(categorical_features))
 
 # TASK 4 — Encoding del target
 
-print("=== PREPROCESSING - TASK 4: TARGET ENCODING ===")
-
-print("\n--- Target prima della conversione ---")
-print(y.value_counts())
-
-y = y.map({
-    "No": 0,
-    "Yes": 1
-})
+print("=== CHECK IMPORTED TARGET DATA ===")
 
 print("\n--- Target dopo la conversione ---")
 print(y.value_counts())
@@ -127,11 +69,7 @@ print(y.isna().sum())
 
 from sklearn.preprocessing import OneHotEncoder
 
-categorical_encoder = OneHotEncoder(
-    handle_unknown="ignore", # non blocca l'encoder se si presenta una categoria nuova durente l'inferenza
-    sparse_output=False, # sparse_output=True utile con molte categorie
-    # drop="first" Non usiamo questa metrica perche andremo ad usare ensemble e non un modello lineare, e in questi e preferibile preservare tutte le features categoriali convertite in nr
-)
+categorical_encoder = make_categorical_encoder() # preprocessing.py import
 
 print(categorical_encoder)
 
@@ -142,33 +80,18 @@ print(categorical_encoder)
 
 from sklearn.compose import ColumnTransformer
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        (
-            "numeric", # nome scelti da me per identificare i vari trasformatori.
-            "passthrough", # parola riconosciuta da ColumnTransformer. significa "Passa queste colonne senza modificarle" 
-            numeric_features
-        ),
-        (
-            "binary",
-            "passthrough",
-            binary_features
-        ),
-        (
-            "categorical",
-            categorical_encoder, # ColumnTransformer trasforma i dati di categorical_features con one-Hot_encoder definito sopra
-            categorical_features
-        )
-    ]
-)
+preprocessor = make_preprocessor(numeric_features, binary_features, categorical_features)
 
 print(preprocessor)
 
+print("=== DUBBLE CHECK PREPROCESSOR  ===")
 print("\n--- Feature totali ---")
 print(len(numeric_features) + len(binary_features) + len(categorical_features)) # 19
 
+#
+
 print("\n--- Preprocessor configurato ---")
-print(preprocessor.transformers) ## "Fammi vedere la configurazione dei trasformatori che ho definito."
+print(preprocessor.transformers) ## "mostra la configurazione dei trasformatori che ho definito."
 
 
 # --------
@@ -176,15 +99,7 @@ print(preprocessor.transformers) ## "Fammi vedere la configurazione dei trasform
 
 from sklearn.model_selection import train_test_split
 
-print("=== PREPROCESSING - TASK 7.1: TRAIN / TEST SPLIT ===")
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.20,
-    random_state=42,
-    stratify=y
-)
+print("DUBBLE CHECK IMPORTED TRAIN / TEST SPLIT ===")
 
 print("\n--- Shapes ---")
 print("X_train", X_train.shape)
@@ -936,7 +851,7 @@ xgb_colsample_results # Scelta: colsample_bytree=1.0
 
 # Tuning "manuale" su XGBoost  finito per ora.
 
-# Valutare XGBoost tuned
+# Valutare le metriche del modello finale di XGBoost dopo il "tuning" manuale
 
 xgb_tuned_model = XGBClassifier(
     objective="binary:logistic",
@@ -993,7 +908,7 @@ print(xgb_tuned_results)
 
 
 # ---------
-# Matrice di confusione di XGBoost "manuale" tuned
+# Matrice di confusione di XGBoost finale dopo "tuned manuale"
 
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
@@ -1017,7 +932,7 @@ plt.show()
 
 # ---
 
-# Confronto diretto tra Random Forest tuned e XGBoost tuned
+# Confronto diretto tra i modelli "finali" Random Forest e XGBoost (entrambi tuned manualmente )
 
 
 final_model_comparison = pd.DataFrame({
@@ -1053,24 +968,26 @@ final_model_comparison.sort_values(
 )
 
 
-# XGBoost tuned è il candidato migliore.
+# XGBoost tuned è il modello con migliori prestazioni per il nostro caso.
 
-#                  Model  Accuracy  Precision    Recall        F1   ROC-AUC
+#     Manual tuned Model  Accuracy   Precision  Recall   F1        ROC-AUC
 # 1        XGBoost Tuned  0.805536   0.665563  0.537433  0.594675  0.848157
 # 0  Random Forest Tuned  0.804116   0.666667  0.524064  0.586826  0.841421
 
-# Non è ancora una decisione definitiva: i risultati provengono dal test set usato anche durante il tuning.
+# Non è ancora una decisione definitiva: i risultati provengono dal test set usato anche durante il tuning, il che rendono i risultati piu' "ottimistici"
 
 
 # -------
+# -------
 
 # Verificare la strategia di validazione
+# Dato che i risultati provengono dal test set usato anche durante il tuning, che rendono ¨
+# i risultati delle prestazioni del modello piu' ottimistici, usiamo la cross-validation sul training set per selezionare i parametri, lasciando il test set per la valutazione finale.
 
-# Usiamo la cross-validation sul training set per selezionare i parametri, lasciando il test set per la valutazione finale.
 # Nota : 
 # Il test set e stato usato spesso durante il tuning dei modelli, risultando in una stima finale
-#  meno indipendente (ovvero piu' ottimistica). Il workflow corretto sarebbe suddividere i dati in
-#  train, test e validation, ma per questo progetto da portfolio non adoperiamo questo split.
+# meno indipendente (ovvero piu' ottimistica). Il workflow corretto sarebbe suddividere i dati in
+# train, test e validation, ma per questo progetto da portfolio non adoperiamo questo split.
 
 # -------
 
