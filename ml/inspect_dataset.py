@@ -506,37 +506,155 @@ for column in numeric_features:
 
 # ---------
 
-# TASK 5.7 — Correlazione tra le feature numeriche
+# TASK 5.7 — Correlazione tra le tra le variabili indipendenti. 
+# 
+# Se prima abbiamo analizzato la correlazioni tra Features e Target ora andremo a vedere se le features indicano una correlazione
+# tra le features stesse. Andremo ad usare i calcoli statistici Pearson e spearman per le features numeriche,
+# e Chi-square test e cramers per quelle categoriche. 
 
-print("=== TASK 5.7: CORRELAZIONE TRA FEATURE NUMERICHE ===")
+# Questi dati ci serviranno per fare feature selection in nel con il modello di regressione logistica(logistic_regression.py), 
+# e anche per calcolare la Permutation_importance nel nostro modello XGBoost (XGBoost.py)
 
-correlation_matrix = df_analysis[numeric_features].corr()
-print(correlation_matrix)
+# Misuriamo la correlazione tra le variabili indipendenti, e' vediamo se si riesce a migliorare le metriche allenando il modello senza feature correlate
 
-# tenure e TotalCharges hanno una correlazione molto alta (0.8262), anche
-# come MonthlyCharges e TotalCharges hanno una correlazione abbastanza forte
+cols = ["tenure", "TotalCharges"]
+
+print(df_analysis[cols].corr(method="pearson")) # Intensità della relazione lineare
+print(df_analysis[cols].corr(method="spearman")) # Relazione monotona, anche non lineare
+
+# forte relazione tra queste 2 features
+
+# visualiziamo la relazione:
+
+plt.scatter(df_analysis["tenure"], df_analysis["TotalCharges"], alpha=0.3)
+plt.xlabel("Tenure")
+plt.ylabel("TotalCharges")
+plt.title("Tenure vs TotalCharges")
+plt.show()
+
+# Evidente relazione
+
+# Correlazioni tra tutte le feature numeriche
+numeric_cols = ["tenure", "MonthlyCharges", "TotalCharges"]
+
+print("Correlazione Pearson:")
+print(df_analysis[numeric_cols].corr(method="pearson").round(3))
+
+print("Correlazione Spearman:")
+print(df_analysis[numeric_cols].corr(method="spearman").round(3))
+
+# MonthlyCharges – TotalCharges -> 0,651 -- 0,638	Correlazione moderata/forte 
+
+# ----
+# ----
+
+# Associazioni tra feature categoriche
+
+import numpy as np
+import pandas as pd
+from scipy.stats import chi2_contingency
+from itertools import combinations
+
+# Feature categoriche, escludendo il target Churn
+cat_cols = categorical_features
+
+cramers_v = pd.DataFrame(
+    np.eye(len(cat_cols)),
+    index=cat_cols,
+    columns=cat_cols
+)
+
+for col1, col2 in combinations(cat_cols, 2):
+    contingency = pd.crosstab(df_analysis[col1], df_analysis[col2])
+    chi2 = chi2_contingency(contingency, correction=False)[0]
+    n = contingency.to_numpy().sum()
+    r, k = contingency.shape
+
+    # V di Cramér con correzione del bias
+    phi2 = chi2 / n
+    phi2_corr = max(
+        0,
+        phi2 - ((k - 1) * (r - 1)) / (n - 1)
+    )
+    r_corr = r - ((r - 1) ** 2) / (n - 1)
+    k_corr = k - ((k - 1) ** 2) / (n - 1)
+
+    denominator = min(k_corr - 1, r_corr - 1)
+    v = np.sqrt(phi2_corr / denominator) if denominator > 0 else np.nan
+
+    cramers_v.loc[col1, col2] = v
+    cramers_v.loc[col2, col1] = v
+
+print(cramers_v.round(3))
+
+# Coppia di feature	------ ----  V di Cramér	Interpretazione
+# PhoneService – MultipleLines - 1,000	------- Associazione perfetta secondo questa misura
+# Molte features categoriche presentano una correlazione forte
 
 
-# ----------
+# ------
 
-# TASK 5.8 — Visualizzazione delle correlazioni
+# Verifichiamo PhoneService e MultipleLines
 
-# import seaborn as sns
-# import matplotlib.pyplot as plt
+print(pd.crosstab(
+    df_analysis["PhoneService"],
+    df_analysis["MultipleLines"],
+    margins=True
+))
 
-# plt.figure(figsize=(8, 6))
+print("\nValori di MultipleLines per ciascun valore di PhoneService:")
+for value in df_analysis["PhoneService"].unique():
+    print(f"\nPhoneService = {value}")
+    print(
+        df_analysis.loc[
+            df_analysis["PhoneService"] == value,
+            "MultipleLines"
+        ].value_counts(dropna=False)
+    )
 
-# sns.heatmap(
-#     correlation_matrix,
-#     annot=True,
-#     fmt=".2f",
-#     cmap="coolwarm",
-#     vmin=-1,
-#     vmax=1
-# )
+# feature perfettamente associate nel dataset.
 
-# plt.title("Correlation Matrix - Numeric Features")
-# plt.show()
+# ---
+
+# Completiamo l'analisi delle associazioni tra feature numeriche e categoriche
+
+
+numeric_cols = ["tenure", "MonthlyCharges", "TotalCharges"]
+cat_cols = categorical_features
+
+def correlation_ratio(categories, values):
+    data = pd.DataFrame({
+        "category": categories,
+        "value": values
+    }).dropna()
+
+    if data["category"].nunique() < 2:
+        return np.nan
+
+    grand_mean = data["value"].mean()
+    ss_between = sum(
+        len(group) * (group.mean() - grand_mean) ** 2
+        for _, group in data.groupby("category")["value"]
+    )
+    ss_total = ((data["value"] - grand_mean) ** 2).sum()
+
+    return np.sqrt(ss_between / ss_total) if ss_total > 0 else np.nan
+
+eta_matrix = pd.DataFrame(
+    index=cat_cols,
+    columns=numeric_cols,
+    dtype=float
+)
+
+for cat in cat_cols:
+    for num in numeric_cols:
+        eta_matrix.loc[cat, num] = correlation_ratio(
+            df_analysis[cat],
+            df_analysis[num]
+        )
+
+print(eta_matrix.round(3))
+
 
 # ------------
 
@@ -568,7 +686,7 @@ for column in internet_features:
         ].value_counts()
     )
 
-# La features InternetService con value "No" e' correlata con queste altre features elencate sopra. Dove "No" in una, e' "No" nelle altre. 
+# La features InternetService con value "No" e' correlata con queste altre features elencate sopra. Dove "No" in una, equivale "No" nelle altre. 
 
 print("=== CHECK: PhoneService -> MultipleLines ===")
 

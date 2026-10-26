@@ -12,9 +12,9 @@ data/
 # ml data understanding notes
 ml/.venv
 ml/data_analysy_and_tasks
-ml/Preprocessing_tree_models
+ml/models/tree_models
 ml/strategia_di_validazione
-ml/Logistic_regression
+ml/models/Logistic_regression
 ml/Test.py
 ml/test_Imports.py
 
