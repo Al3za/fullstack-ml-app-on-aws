@@ -1,31 +1,11 @@
 # Logistic Regression
 
 import pandas as pd
+from dataset import df_analysis, X, y, numeric_features, binary_features, categorical_features
+from preprocessing import make_categorical_encoder, make_preprocessor
+from data_split import X_train, X_test, y_train, y_test
 
-DATA_PATH = "../data/WA_Fn-UseC_-Telco-Customer-Churn.csv"
-
-df = pd.read_csv(DATA_PATH) # i dati raw non modificati
-
-df_analysis = df.copy() # dati modificati
-
-# Transform TotalCharges empty data "" to 0 to perform  on the column:
-
-df_analysis["TotalCharges"] = pd.to_numeric( # Convert object type to a numeric type.
-    df_analysis["TotalCharges"],
-    errors="coerce" # sets the "" values to NAN
-)
-
-df_analysis['TotalCharges'] = df_analysis['TotalCharges'].fillna(0)
-
-print((df_analysis['TotalCharges'] == 0).sum())
-
-print("=== PREPROCESSING - TASK 1: FEATURE PREPARATION ===")
-
-target = "Churn"
-id_column = "customerID"
-
-X = df_analysis.drop(columns=[target,id_column]) # id non ci serve per addestrare il modello, e targhet lo separiamo semplicemente dalle variabili indipendenti
-y = df_analysis[target]
+print("=== DUBBLE CHECK IMPORTED X,y DATA ===")
 
 print("\n--- X ---")
 print(X.shape)
@@ -52,36 +32,7 @@ print(X.isna().sum().sort_values(ascending=False))
 
 # ---------
 # TASK 3 — Separazione delle feature numeriche e categoriche
-
-print("=== PREPROCESSING - TASK 3: FEATURE GROUPS ===")
-
-numeric_features = [
-    "tenure",
-    "MonthlyCharges",
-    "TotalCharges"
-]
-
-binary_features = [
-    "SeniorCitizen"
-]
-
-categorical_features = [
-    "gender",
-    "Partner",
-    "Dependents",
-    "PhoneService",
-    "MultipleLines",
-    "InternetService",
-    "OnlineSecurity",
-    "OnlineBackup",
-    "DeviceProtection",
-    "TechSupport",
-    "StreamingTV",
-    "StreamingMovies",
-    "Contract",
-    "PaperlessBilling",
-    "PaymentMethod"
-]
+print("=== DUBBLE CHECK IMPORTED FEATURE GROUPS ===")
 
 print("Numeric features:")
 print(numeric_features)
@@ -101,15 +52,7 @@ print("Numero feature categoriche:", len(categorical_features))
 
 # TASK 4 — Encoding del target
 
-print("=== PREPROCESSING - TASK 4: TARGET ENCODING ===")
-
-print("\n--- Target prima della conversione ---")
-print(y.value_counts())
-
-y = y.map({
-    "No": 0,
-    "Yes": 1
-})
+print("=== CHECK IMPORTED TARGET DATA ===")
 
 print("\n--- Target dopo la conversione ---")
 print(y.value_counts())
@@ -126,15 +69,9 @@ print(y.isna().sum())
 
 from sklearn.preprocessing import OneHotEncoder
 
-categorical_encoder = OneHotEncoder(
-    handle_unknown="ignore", # non blocca l'encoder se si presenta una categoria nuova durente l'inferenza
-    sparse_output=False, # sparse_output=True -> utile quando abbiamo molte categorie (in questo caso abbiamo al massimo 3)
-    # drop="first" # elimina la prima colonna per evitare la collinearita' perfetta tra le variabili categoriche trasformate con OHE (dummy variable trap)
-    # abilita drop="first" dopo aver testato il tuning sulla regolarizazione L1, L2
-)
+categorical_encoder = make_categorical_encoder() # preprocessing.py import
 
 print(categorical_encoder)
-
 
 # --------------
 
@@ -142,25 +79,7 @@ print(categorical_encoder)
 
 from sklearn.compose import ColumnTransformer
 
-preprocessor = ColumnTransformer(
-    transformers=[
-        (
-            "numeric", # nome scelti da me per identificare i vari trasformatori.
-            "passthrough", # parola riconosciuta da ColumnTransformer. significa "Passa queste colonne senza modificarle" 
-            numeric_features
-        ),
-        (
-            "binary",
-            "passthrough",
-            binary_features
-        ),
-        (
-            "categorical",
-            categorical_encoder, # ColumnTransformer trasforma i dati di categorical_features con one-Hot_encoder definito sopra
-            categorical_features
-        )
-    ]
-)
+preprocessor = make_preprocessor(numeric_features, binary_features, categorical_features)
 
 print(preprocessor)
 
@@ -172,19 +91,11 @@ print(preprocessor.transformers) ## "Fammi vedere la configurazione dei trasform
 
 
 # --------
-# TASK 7 — Train/Test Split e Fit e trasformazione delle feature
+# TASK 7 — Controlla Train/Test Split e Fit e trasformazione delle feature
 
 from sklearn.model_selection import train_test_split
 
-print("=== PREPROCESSING - TASK 7.1: TRAIN / TEST SPLIT ===")
-
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.20,
-    random_state=42,
-    stratify=y
-)
+print("DUBBLE CHECK IMPORTED TRAIN / TEST SPLIT ===")
 
 print("\n--- Shapes ---")
 print("X_train", X_train.shape)
@@ -251,23 +162,21 @@ for i, feature in enumerate(feature_names[:10]):
     print(feature, "→", np.unique(X_train_processed[:, i]))
 
 
-# tutto come ci aspettavamo, nessune stranezze nelle trasformazioni e values delle colonne categoriche e numeriche
+# Trasformazioni e values delle colonne categoriche e numeriche avvenute correttamente
+
+# ----------
 
 # TASK 9 — Creiamo il preprocessing con scaling
 
 from sklearn.preprocessing import StandardScaler
 
 # Nuovo preprocessing dedicato alla Logistic Regression
-preprocessor_lr = ColumnTransformer(
-    transformers=[
-        ("numeric", StandardScaler(), numeric_features),
-        ("binary", "passthrough", binary_features),
-        ("categorical", categorical_encoder, categorical_features)
-    ],
-    remainder="drop",
-    verbose_feature_names_out=True
+preprocessor_lr = make_preprocessor(
+    numeric_features,
+    binary_features,
+    categorical_features,
+    scale_numeric=True # applica lo StandardScaler
 )
-
 print("Preprocessor per Logistic Regression creato.")
 
 
@@ -309,12 +218,12 @@ for feature in ["numeric__tenure",
 
 # ------
 
-# Pipeline e Addestramento della Logistic Regression
+# Creiamo la Pipeline 
 # Usiamo il preprocessing dentro la pipeline
-
 
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold, cross_validate
 
 lr_baseline = Pipeline([
     ("preprocessor", preprocessor_lr),
@@ -324,7 +233,45 @@ lr_baseline = Pipeline([
     ))
 ])
 
+#cross-validation
+
+cv = StratifiedKFold(
+    n_splits=5,
+    shuffle=True,
+    random_state=42
+)
+
+lr_cv_scores = cross_validate(
+    lr_baseline,
+    X_train,
+    y_train,
+    cv=cv,
+    scoring={
+        "accuracy": "accuracy",
+        "precision": "precision",
+        "recall": "recall",
+        "f1": "f1",
+        "roc_auc": "roc_auc"
+    },
+    n_jobs=-1
+)
+
+print("--- LOGISTIC REGRESSION: 5-FOLD CV ---")
+# Valori meddi delle metriche in descrizione
+
+for metric in ["accuracy", "precision", "recall", "f1", "roc_auc"]:
+    scores = lr_cv_scores[f"test_{metric}"]
+
+    # vediamo quanto le metriche variano tra fold
+    print(
+        f"{metric.capitalize():<10}: "
+        f"{scores.mean():.4f} +/- {scores.std():.4f}"
+    )
+
+
+# Dopo un insight sulle metriche, alleniamo il modello con il train test
 lr_baseline.fit(X_train, y_train)
+
 
 print("Logistic Regression addestrata correttamente.")
 print(
@@ -409,7 +356,7 @@ plt.show()
 #----------
 
 # Calcolo e grafico Precision-Recall
-# Cerchiamo di ricavare il miglior trade-off tra recalla e precision 
+# Cerchiamo di ricavare il miglior trade-off tra recall e precision 
 
 from sklearn.metrics import (
     precision_recall_curve,
@@ -596,7 +543,8 @@ else:
 # ----
 
 # Verifica della calibrazione delle probabilita' del modello.
-# calcola il Brier score delle probabilità OOF e disegna la curva di calibrazione
+# calcola il Brier score delle probabilità OOF e disegna la curva di calibrazione. Questo e un metodo che dimostra quanto
+# le probabilita del modello siano accurate e affidabili misurando la corrispondenza tra le probabilità predette e le frequenze osservate
 
 
 import matplotlib.pyplot as plt
@@ -1217,7 +1165,7 @@ print(f"FN: {fn} | TP: {tp}")
 
 
 # ----
-# Confrontiamo tutti e quattro i modelli con rispettive soglie favorite
+# Confrontiamo le metriche del "test set" di tutti e quattro i modelli con rispettive soglie favorite
 
 results_test = pd.DataFrame({
     "Baseline (0.36)": {
@@ -1523,148 +1471,7 @@ print(f"FN: {fn} | TP: {tp}")
 
 # Feature selection
 
-# Misuriamo la correlazione tra le variabili indipendenti, e' vediamo se si riesce a migliorare le metriche allenando il modello senza feature correlate
-
-cols = ["tenure", "TotalCharges"]
-
-print(df_analysis[cols].corr(method="pearson")) # Intensità della relazione lineare
-print(df_analysis[cols].corr(method="spearman")) # Relazione monotona, anche non lineare
-
-# forte relazione tra queste 2 features
-
-# visualiziamo la relazione:
-
-plt.scatter(df_analysis["tenure"], df_analysis["TotalCharges"], alpha=0.3)
-plt.xlabel("Tenure")
-plt.ylabel("TotalCharges")
-plt.title("Tenure vs TotalCharges")
-plt.show()
-
-# Evidente relazione
-
-# Correlazioni tra tutte le feature numeriche
-numeric_cols = ["tenure", "MonthlyCharges", "TotalCharges"]
-
-print("Correlazione Pearson:")
-print(df_analysis[numeric_cols].corr(method="pearson").round(3))
-
-print("Correlazione Spearman:")
-print(df_analysis[numeric_cols].corr(method="spearman").round(3))
-
-# MonthlyCharges – TotalCharges -> 0,651 -- 0,638	Correlazione moderata/forte 
-
-# ----
-# associazioni tra feature categoriche
-
-import numpy as np
-import pandas as pd
-from scipy.stats import chi2_contingency
-from itertools import combinations
-
-# Feature categoriche, escludendo il target Churn
-cat_cols = categorical_features
-
-cramers_v = pd.DataFrame(
-    np.eye(len(cat_cols)),
-    index=cat_cols,
-    columns=cat_cols
-)
-
-for col1, col2 in combinations(cat_cols, 2):
-    contingency = pd.crosstab(df_analysis[col1], df_analysis[col2])
-    chi2 = chi2_contingency(contingency, correction=False)[0]
-    n = contingency.to_numpy().sum()
-    r, k = contingency.shape
-
-    # V di Cramér con correzione del bias
-    phi2 = chi2 / n
-    phi2_corr = max(
-        0,
-        phi2 - ((k - 1) * (r - 1)) / (n - 1)
-    )
-    r_corr = r - ((r - 1) ** 2) / (n - 1)
-    k_corr = k - ((k - 1) ** 2) / (n - 1)
-
-    denominator = min(k_corr - 1, r_corr - 1)
-    v = np.sqrt(phi2_corr / denominator) if denominator > 0 else np.nan
-
-    cramers_v.loc[col1, col2] = v
-    cramers_v.loc[col2, col1] = v
-
-print(cramers_v.round(3))
-
-# Coppia di feature	------ ----  V di Cramér	Interpretazione
-# PhoneService – MultipleLines - 1,000	------- Associazione perfetta secondo questa misura
-# Molte features categoriche presentano una correlazione forte
-
-
-# ------
-
-# Verifichiamo PhoneService e MultipleLines
-
-print(pd.crosstab(
-    df_analysis["PhoneService"],
-    df_analysis["MultipleLines"],
-    margins=True
-))
-
-print("\nValori di MultipleLines per ciascun valore di PhoneService:")
-for value in df_analysis["PhoneService"].unique():
-    print(f"\nPhoneService = {value}")
-    print(
-        df_analysis.loc[
-            df_analysis["PhoneService"] == value,
-            "MultipleLines"
-        ].value_counts(dropna=False)
-    )
-
-# feature perfettamente associate nel dataset.
-
-# ---
-
-# Completiamo l'analisi delle associazioni tra feature numeriche e categoriche
-
-
-
-numeric_cols = ["tenure", "MonthlyCharges", "TotalCharges"]
-cat_cols = categorical_features
-
-def correlation_ratio(categories, values):
-    data = pd.DataFrame({
-        "category": categories,
-        "value": values
-    }).dropna()
-
-    if data["category"].nunique() < 2:
-        return np.nan
-
-    grand_mean = data["value"].mean()
-    ss_between = sum(
-        len(group) * (group.mean() - grand_mean) ** 2
-        for _, group in data.groupby("category")["value"]
-    )
-    ss_total = ((data["value"] - grand_mean) ** 2).sum()
-
-    return np.sqrt(ss_between / ss_total) if ss_total > 0 else np.nan
-
-eta_matrix = pd.DataFrame(
-    index=cat_cols,
-    columns=numeric_cols,
-    dtype=float
-)
-
-for cat in cat_cols:
-    for num in numeric_cols:
-        eta_matrix.loc[cat, num] = correlation_ratio(
-            df_analysis[cat],
-            df_analysis[num]
-        )
-
-print(eta_matrix.round(3))
-
-
-# ---------
-# Confrontare modelli alternativi facendo feature selection sulle features correlate secondo i risultati delle analisi che abbiamo appena completato per individuare le coppie e i gruppi candidati.
+# Confrontare modelli alternativi facendo feature selection sulle features correlate secondo i risultati delle analisi applicate su inspect_dataset.py. 
 
 # Confrontiamo le prestazioni in cross-validation di modelli che differiscono per una sola scelta di feature. 
 # È il modo più diretto per capire se una variabile può essere rimossa senza compromettere il risultato.

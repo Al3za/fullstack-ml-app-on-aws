@@ -3,7 +3,7 @@
 
 # creiamo funzioni di preprocessing reutilizzabili
 
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 # 1. Categorical encoder
 def make_categorical_encoder():
@@ -22,15 +22,28 @@ from sklearn.compose import ColumnTransformer
 def make_preprocessor(
     numeric_features,
     binary_features,
-    categorical_features
+    categorical_features,
+    scale_numeric=False
 ):
     categorical_encoder = make_categorical_encoder()
+
+    numeric_transformer=(
+        StandardScaler() if scale_numeric else "passthrough"
+    )
+
+    kwargs = {}
+
+    if scale_numeric:
+        kwargs = {
+            "remainder": "drop",
+            "verbose_feature_names_out": True
+        }
 
     preprocessor = ColumnTransformer(
         transformers=[
             (
                 "numeric",
-                "passthrough",
+                numeric_transformer, # Per distinguere tree model da linear model (Linear ha bisogno della scalatura dei dati mentre i tree model no)
                 numeric_features
             ),
             (
@@ -43,7 +56,8 @@ def make_preprocessor(
                 categorical_encoder,
                 categorical_features
             )
-        ]
+        ],
+        **kwargs
     )
 
     return preprocessor
