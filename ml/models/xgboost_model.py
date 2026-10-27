@@ -880,8 +880,67 @@ print(
 
 
 # Il terzo gruppo ha un’importanza congiunta media di 0.1127, quindi la permutazione simultanea dei servizi Internet provoca un calo 
-# significativo dell’F1-score.
+# significativo dell’F1-score. 
 
+# Cio' indica che il modello perde una parte importante della sua capacità predittiva quando gli togliamo l'associazione originale
+# tra i clienti e il loro gruppo di servizi. 
+
+# ----------
 # ----------
 
 # Analisi del quarto gruppo di features associate:
+
+# Contract + tenure
+
+# Gruppo: contratto e durata del cliente
+group_features_contract = ["Contract", "tenure"]
+
+# F1 di riferimento
+baseline_f1 = f1_at_threshold(xgb_final, X_test, y_test)
+
+group_importances_contract = []
+rng = np.random.default_rng(42)
+
+for _ in range(20):
+    X_permuted = X_test.copy()
+
+    # Stessa permutazione per entrambe le feature
+    permutation = rng.permutation(len(X_permuted))
+
+    X_permuted[group_features_contract] = (
+        X_test[group_features_contract]
+        .iloc[permutation]
+        .to_numpy()
+    )
+
+    permuted_f1 = f1_at_threshold(
+        xgb_final,
+        X_permuted,
+        y_test
+    )
+
+    group_importances_contract.append(
+        baseline_f1 - permuted_f1
+    )
+
+group_importance_mean_contract = np.mean(
+    group_importances_contract
+)
+group_importance_std_contract = np.std(
+    group_importances_contract,
+    ddof=0
+)
+
+print(f"F1-score di riferimento: {baseline_f1:.4f}")
+print(
+    "Importanza congiunta media: "
+    f"{group_importance_mean_contract:.4f}"
+)
+print(
+    "Deviazione standard: "
+    f"{group_importance_std_contract:.4f}"
+)
+
+# Questo è il risultato più alto tra i gruppi che abbiamo analizzato finora
+# Il modello passa da un F1-score di 0.6318 a circa 0.4162 quando permutiamo insieme Contract e tenure. 
+# Quindi il gruppo contiene informazioni predittive molto importanti per il modello.
