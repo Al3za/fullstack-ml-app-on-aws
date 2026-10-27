@@ -944,3 +944,217 @@ print(
 # Questo è il risultato più alto tra i gruppi che abbiamo analizzato finora
 # Il modello passa da un F1-score di 0.6318 a circa 0.4162 quando permutiamo insieme Contract e tenure. 
 # Quindi il gruppo contiene informazioni predittive molto importanti per il modello.
+
+# ---------
+# ---------
+
+# SHAP
+# SHAP ci aiuterà a capire quali feature spingono le previsioni verso il churn e quali nella direzione opposta.
+
+# ---
+
+# Prepariamo i dati per SHAP
+
+# Per ottenere spiegazioni leggibili, cercheremo di mantenere i nomi delle feature originali, come Contract e InternetService,
+# invece di ritrovarci soltanto con le numerose colonne create dall'One-Hot Encoding
+
+# Verifichiamo il preprocessing:
+
+# Estraiamo il preprocessing e il classificatore dalla pipeline
+preprocessor = xgb_final.named_steps["preprocessor"]
+xgb_classifier = xgb_final.named_steps["classifier"]
+
+# Trasformiamo i dati di test nello stesso modo usato dal modello
+X_test_transformed = preprocessor.transform(X_test)
+
+# Recuperiamo i nomi delle feature dopo il preprocessing
+feature_names_transformed = preprocessor.get_feature_names_out()
+
+print("Forma di X_test originale:", X_test.shape)
+print("Forma di X_test trasformato:", X_test_transformed.shape)
+print("Numero di nomi delle feature:", len(feature_names_transformed))
+
+print("\nPrimi 15 nomi delle feature trasformate:")
+print(feature_names_transformed[:15])
+
+# Le 19 feature originali sono diventate 45 feature numeriche dopo il preprocessing. 
+# SHAP deve analizzare i dati trasformati, perché sono quelli che XGBoost riceve effettivamente
+
+# -----
+
+# **Prepariamo il campione di training**
+
+# Per iniziare, useremo un campione casuale di 500 clienti del training set. È un buon compromesso iniziale tra velocità di calcolo e quantità di informazioni.
+
+# Campione del training set per l'analisi SHAP
+X_shap = X_train.sample(
+    n=500,
+    random_state=42
+)
+
+# Applichiamo lo stesso preprocessing usato dal modello
+X_shap_transformed = preprocessor.transform(X_shap)
+
+print("Forma del campione originale:", X_shap.shape)
+print("Forma del campione trasformato:", X_shap_transformed.shape)
+
+# Il campione è pronto
+
+# -----
+# -----
+
+# Calcoliamo i valori SHAP
+
+import shap
+
+# Creiamo lo spiegatore SHAP per XGBoost
+explainer = shap.TreeExplainer(xgb_classifier)
+
+# Calcoliamo i valori SHAP sul campione trasformato
+shap_values = explainer(X_shap_transformed)
+
+print("Forma dei valori SHAP:", shap_values.values.shape)
+print("Numero di feature trasformate:", len(feature_names_transformed))
+
+# Forma dei valori SHAP: (500, 45)
+# Numero di feature trasformate: 45
+
+
+# ------
+# ------
+
+# Calcoliamo l'importanza globale SHAP
+# Per ogni feature calcoliamo la media del valore assoluto dei suoi valori SHAP. In questo modo misuriamo quanto la feature contribuisce alle previsioni, 
+# senza confondere contributi positivi e negativi che potrebbero annullarsi.
+
+import pandas as pd
+import numpy as np
+
+# Importanza globale: media dei valori SHAP assoluti
+shap_importance = pd.DataFrame({
+    "Feature": feature_names_transformed,
+    "Mean_Abs_SHAP": np.abs(shap_values.values).mean(axis=0)
+})
+
+# Ordiniamo dalla più importante alla meno importante
+shap_importance = shap_importance.sort_values(
+    "Mean_Abs_SHAP",
+    ascending=False
+).reset_index(drop=True)
+
+print(shap_importance.head(20).to_string(index=False))
+
+# Contract_Month-to-month ha il contributo medio più grande alle previsioni del modello.
+# tenure è al secondo posto: la durata del rapporto con il cliente influenza sensibilmente le previsioni.
+
+
+# -----
+
+# Prossimo passo: capire la direzione dell'effetto delle features values
+
+shap.summary_plot(
+    shap_values.values,
+    X_shap_transformed,
+    feature_names=feature_names_transformed,
+    max_display=20
+)
+
+# il grafico mostra che:
+# Contract_Month-to-month risulta essere ancora una volta la feature piu' importante per il target. 
+# I punti rossi (OHE = 1) prevalentemente a destra della retta indicano che avere un contratto mensile spinge il modello verso una maggiore probabilità di churn.
+
+# Poi viene tenure, OnlineSecurity_No ....
+
+# ----
+# ----
+
+# Prepariamo l'importanza SHAP per le 19 feature originali
+
+# Creiamo un grafico aggregato sulla base dei dati precedenti.
+
+# L'idea è raggruppare le colonne derivate dalla stessa variabile originale (cioe' le colonne categoriche trasformate da One-Hot_encoding). 
+# Per esempio:
+#  Contract_Month-to-month, Contract_One year e Contract_Two year appartengono tutte a Contract. 
+
+# Per ogni osservazione, sommeremo i valori SHAP con il loro segno all'interno di ciascun gruppo; poi calcoleremo la media dei valori assoluti.
+
+
+# Aggregazione SHAP dalle colonne preprocessate alle feature originali
+
+# Matrice dei valori SHAP: righe = clienti, colonne = feature preprocessate
+shap_df = pd.DataFrame(
+    shap_values.values,
+    columns=feature_names_transformed,
+    index=X_shap.index
+)
+
+# Associa ogni colonna trasformata alla feature originale (19 colonne)
+original_features = {}
+
+for col in feature_names_transformed:
+    if col.startswith("numeric__"):
+        original_features[col] = col.replace("numeric__", "")
+    elif col.startswith("binary__"):
+        original_features[col] = col.replace("binary__", "")
+    elif col.startswith("categorical__"):
+        # Rimuove il prefisso e la categoria, conservando il nome originale
+        transformed_name = col.replace("categorical__", "")
+        original_features[col] = next(
+            feature
+            for feature in categorical_features
+            if transformed_name.startswith(feature + "_")
+        )
+    else:
+        raise ValueError(f"Prefisso non riconosciuto: {col}")
+
+# Somma i contributi SHAP con segno per ciascuna feature originale
+shap_original = pd.DataFrame(index=shap_df.index)
+
+for feature in X_train.columns:
+    columns = [
+        col for col in shap_df.columns
+        if original_features[col] == feature
+    ]
+    shap_original[feature] = shap_df[columns].sum(axis=1)
+
+# Importanza globale: media del valore assoluto del contributo aggregato
+shap_original_importance = (
+    shap_original.abs()
+    .mean()
+    .sort_values(ascending=False)
+    .rename("Mean_Abs_SHAP")
+    .reset_index()
+    .rename(columns={"index": "Feature"})
+)
+
+print("Numero di feature originali:", shap_original.shape[1])
+display(shap_original_importance)
+
+# Risultato di SHAP agregato molto simile a quello di shap sulle features preprocessate con One-hot-Encoder:
+# Feature ------ Mean_Abs_SHAP
+# Contract ----- 0.762021
+# tenure	----- 0.360010
+# OnlineSecurity- 0.237192
+# .....
+
+
+# Creiamo il grafico di SHAP agregata
+
+
+# Ordina le feature dalla meno alla più importante
+plot_data = shap_original_importance.sort_values(
+    "Mean_Abs_SHAP", ascending=True
+)
+
+plt.figure(figsize=(10, 8))
+
+plt.barh(
+    plot_data["Feature"],
+    plot_data["Mean_Abs_SHAP"]
+)
+
+plt.xlabel("Mean Absolute SHAP Value (aggregated)")
+plt.ylabel("Original Feature")
+plt.title("SHAP Feature Importance — Original Features")
+plt.tight_layout()
+plt.show()
