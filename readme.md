@@ -28,7 +28,7 @@ The ML workflow uses a customer churn dataset to develop, evaluate, and prepare 
 - **Frontend:** Next.js, TypeScript, Tailwind CSS
 - **API:** Amazon API Gateway
 - **Backend:** AWS Lambda
-- **Machine Learning:** Python, pandas, scikit-learn, [final model framework]
+- **Machine Learning:** Python, pandas, scikit-learn, XGBoost, Random Forest, Logistic Regression
 - **Model Hosting:** Amazon SageMaker
 - **Data Storage:** Amazon S3
 - **Infrastructure as Code:** Terraform
