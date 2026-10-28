@@ -17,6 +17,7 @@ ml/strategia_di_validazione
 ml/models/Logistic_regression
 ml/Test.py
 ml/test_Imports.py
+ml/machine_learning.md
 
 # OS
 .DS_Store

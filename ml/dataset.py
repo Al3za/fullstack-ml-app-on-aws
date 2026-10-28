@@ -28,19 +28,10 @@ y = df_analysis[target].map({ # Encoding del target
     "Yes":1
 })
 
-print("\n--- Target dopo la conversione ---")
-print(y.value_counts())
-
-print("\n--- Target dtype ---")
-print(y.dtype)
-
-print("\n--- Valori mancanti ---")
-print(y.isna().sum())
-
 
 # definisci le features
 
-print("=== PREPROCESSING: FEATURE GROUPS ===")
+# === FEATURE GROUPS ===
 
 numeric_features = [
     "tenure",

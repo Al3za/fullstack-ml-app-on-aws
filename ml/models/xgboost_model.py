@@ -124,7 +124,7 @@ print(y_test.value_counts(normalize=True) * 100)
 # Eseguiamo il fit e la trasformazione dei dati per verificare che il preprocessor funziona e le trasformazioni OHE avvengono correttamente
 # Essenziale da verificare prima di usare la pipeline nel Cross-validation
 
-print("=== FIT & TRANSFORM di train e test dat ===")
+print("=== FIT & TRANSFORM di train e test data, (solo per mostrare sotto la trasformazione dell encoder sulle variabili categortiche)¶ ===")
 
 X_train_processed = preprocessor.fit_transform(X_train) # one hot encoder applied in preprocessing.py 
 X_test_processed = preprocessor.transform(X_test)
@@ -300,7 +300,7 @@ for child_weight in child_weight_values:
         eval_metric="logloss",
         random_state=42,
         n_jobs=1,
-        **params # i params scelti tramite Random
+        **params # i params scelti tramite RandomSearchCv + il tuning di min_child_weight
     )
 
     pipeline = Pipeline([
@@ -558,6 +558,7 @@ model_comparison = pd.DataFrame([
 
 print(model_comparison.round(4).to_string(index=False))
 
+# Fine tuning e valutazione metriche di XGBoost.
 # XGBoost vinvce su Random Forest al momento.
 # Da mensionare che i parametri class_weight="balanced"(RF) e scale_pos_weight(XGB) non sono stati testati, da testare in futuro
 
@@ -611,6 +612,10 @@ print(model_comparison.round(4).to_string(index=False))
 
 # -------
 # -------
+# -------
+# -------
+
+# Analisi interpretativa del modello finale con Permutation Importance e SHAP. 
 
 ###  Permutation Importance Individuale. 
 
@@ -624,7 +629,7 @@ print(model_comparison.round(4).to_string(index=False))
 from sklearn.inspection import permutation_importance
 
 
-# Soglia selezionata tramite OOF validation (la soglia migliore per il nostro modello finale che porta al miglior f1 score)
+# Soglia selezionata tramite OOF validation (la soglia migliore per il nostro modello finale che risulta come miglior f1 score)
 threshold = 0.35
 
 # Funzione per calcolare l'F1 usando la soglia personalizzata. 
@@ -633,15 +638,15 @@ threshold = 0.35
 def f1_at_threshold(estimator, X, y):
     probabilities = estimator.predict_proba(X)[:, 1] # probs di churn=1 del modello candidato xgb_final 
     predictions = (probabilities >= threshold).astype(int)
-    return f1_score(y, predictions)
+    return f1_score(y, predictions, zero_division=0) # zero_division=0 evita error in casi in cui non vengano predetti positivi
 
 # Permutation Importance sul modello XGBoost tuned
 perm_importance_xgb = permutation_importance(
     estimator=xgb_final,
     X=X_test,
     y=y_test,
-    scoring=f1_at_threshold,
-    n_repeats=20,
+    scoring=f1_at_threshold, # Passiamo a f1_at_threshold() gli argomenti di permutation_importance (xgb_final, X(le features da valutare X_test originali e poi mescolate), y(i dati y_test per la validazione))
+    n_repeats=20,  # mescola i dati di ogni feature 20 volte e calcola f1 
     random_state=42,
     n_jobs=-1
 )
@@ -697,16 +702,13 @@ plt.show()
 # ----
 
 # Permutazione per gruppi. Ragruppiamo le features associate calcolate nel file inspect_dataset.py, e raggruppiamole per misurare nuovamente la Permutation_importance
-
+ 
 
 # Analiziamo il primo gruppo di features associate:
 
 # - tenure
 # - TotalCharges
 
-
-import numpy as np
-from sklearn.metrics import f1_score
 
 # Gruppo di feature associate
 group_features = ["tenure", "TotalCharges"]
@@ -716,20 +718,20 @@ baseline_f1 = f1_at_threshold(xgb_final, X_test, y_test)
 
 group_importances = []
 
-rng = np.random.default_rng(42)
+rng = np.random.default_rng(42) # crea un generatore di numeri casuali di NumPy.
 
 for _ in range(20):
     X_permuted = X_test.copy()
 
     # Stessa permutazione delle righe per entrambe le feature:
     # la relazione interna tra tenure e TotalCharges viene preservata
-    permutation = rng.permutation(len(X_permuted))
+    permutation = rng.permutation(len(X_permuted)) # indici mesolati delle righe del train set
 
-    X_permuted[group_features] = (
+    X_permuted[group_features] = ( # usa gli indici shuffled per mescolare i dati di group_features, mantenendo la relazione tra esse ma spezzandole con il resto delle features
         X_test[group_features].iloc[permutation].to_numpy()
-    )
+    ) # 
 
-    permuted_f1 = f1_at_threshold(
+    permuted_f1 = f1_at_threshold( # ripetiamo 20 volde lo shuffle, e la valutazione delle metriche del modello finale sul test set
         xgb_final,
         X_permuted,
         y_test
@@ -770,7 +772,7 @@ baseline_f1 = f1_at_threshold(xgb_final, X_test, y_test)
 
 group_importances_phone = []
 
-rng = np.random.default_rng(42)
+# rng = np.random.default_rng(42)
 
 for _ in range(20):
     X_permuted = X_test.copy()
@@ -836,7 +838,7 @@ baseline_f1 = f1_at_threshold(xgb_final, X_test, y_test)
 
 group_importances_internet = []
 
-rng = np.random.default_rng(42)
+# rng = np.random.default_rng(42)
 
 for _ in range(20):
     X_permuted = X_test.copy()
@@ -899,7 +901,7 @@ group_features_contract = ["Contract", "tenure"]
 baseline_f1 = f1_at_threshold(xgb_final, X_test, y_test)
 
 group_importances_contract = []
-rng = np.random.default_rng(42)
+# rng = np.random.default_rng(42)
 
 for _ in range(20):
     X_permuted = X_test.copy()
