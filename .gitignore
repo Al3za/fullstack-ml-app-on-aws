@@ -10,6 +10,8 @@ node_modules/
 data/
 
 # ml data understanding notes
+ml/inference.md
+__pycache__/
 ml/.venv
 ml/data_analysy_and_tasks
 ml/models/tree_models
@@ -18,6 +20,7 @@ ml/models/Logistic_regression
 ml/Test.py
 ml/test_Imports.py
 ml/machine_learning.md
+after_ml_local_dev_is_done
 
 # OS
 .DS_Store

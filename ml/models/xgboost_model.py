@@ -2,9 +2,11 @@
 
 import pandas as pd
 import matplotlib.pyplot as plt
-from dataset import df_analysis, X, y, numeric_features, binary_features, categorical_features
-from preprocessing import make_categorical_encoder, make_preprocessor
-from data_split import X_train, X_test, y_train, y_test
+from ml.dataset import df_analysis, X, y, numeric_features, binary_features, categorical_features
+from dataset import df_analysis, X
+from ml.preprocessing import make_categorical_encoder, make_preprocessor
+from ml.data_split import X_train, X_test, y_train, y_test
+# dal roth path, esegui  python -m ml.models.xgboost_model.py per esegurire il run della pagina
 
 # Intro dei dati preprocessati importati
 
@@ -349,7 +351,7 @@ print(results_xgb_manual_df.round(4).to_string(index=False))
 # Utilizziamo direttamente xgb*search.best_estimator*, che contiene già la pipeline con il preprocessing,
 # gli parametri mifgliori per f1 score, ed è già stato riaddestrato su tutto X_train grazie a refit=True.
 
-# Modello XGBoost consolidato grazie a refit=True.
+# Modello XGBoost consolidato grazie a refit=True. xgb_search.best_estimator_ contiene l'intera pipeline + i best_params ottenuti da RandomizeSearchCv.
 xgb_final = xgb_search.best_estimator_
 
 print("Parametri del modello finale:")
@@ -360,7 +362,7 @@ print("\nModello XGBoost consolidato correttamente.")
 
 # ------
 # 2. Calcoliamo metriche e confusion matrix
-y_pred_xgb = xgb_final.predict(X_test) # La pipeline si occuma delle trasformazioni delle colonne di X_test 
+y_pred_xgb = xgb_final.predict(X_test) # La pipeline si occupa delle trasformazioni delle colonne di X_test 
 
 # Probabilità della classe positiva: Churn = 1
 y_proba_xgb = xgb_final.predict_proba(X_test)[:,1] # possibile grazie alla metrica xgboost = objective="binary:logistic"
@@ -1160,3 +1162,62 @@ plt.ylabel("Original Feature")
 plt.title("SHAP Feature Importance — Original Features")
 plt.tight_layout()
 plt.show()
+
+# -----
+# salvare la pipeline
+# Salviamo la pipeline finale per usarla su AWS
+
+from pathlib import Path
+import joblib
+import json
+
+# Directory del modello
+MODEL_DIR = Path("models")
+MODEL_DIR.mkdir(parents=True, exist_ok=True)
+
+# Salva pipeline completa: preprocessing + XGBoost
+joblib.dump(xgb_final, MODEL_DIR / "xgb_final.joblib")
+
+# Salva la soglia decisionale
+with open(MODEL_DIR / "threshold.json", "w", encoding="utf-8") as f:
+    json.dump({"threshold": 0.35}, f, indent=2)
+
+print("Modello e soglia salvati correttamente.")
+
+
+# Testiamo il modello salvato prima di passare al Deployment su amazon
+
+# Valutiamo se il "loaded-model" e' stato salvato correttamente e e confrontiamo le probabilità con quelle prodotte dall'oggetto originale su alcune righe di test.
+loaded_model = joblib.load("models/xgb_final.joblib")
+
+original_proba = xgb_final.predict_proba(X_test.iloc[:10])[:, 1]
+loaded_proba = loaded_model.predict_proba(X_test.iloc[:10])[:, 1]
+
+import numpy as np
+
+np.testing.assert_allclose(
+    original_proba,
+    loaded_proba,
+    rtol=1e-6,
+    atol=1e-7
+)
+
+print("Verifica superata: probabilità coerenti.")
+
+# probabilità coerenti. Modello idoneo per deployment su aws!
+
+
+# Creiamo inference.py 
+# Realizziamo una funzione Python indipendente da AWS, così possiamo verificarla localmente prima di introdurre il formato 
+# richiesto dal container SageMaker
+
+# Testiamo una predizione su una riga del test set originale.
+
+sample_customer = X_test.iloc[0].to_dict()
+print(sample_customer)
+
+
+from ml.inference import predict_customer
+
+result = predict_customer(sample_customer)
+print(result)
