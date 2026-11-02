@@ -1,13 +1,3 @@
-# # La responsabilità di questo file sarà:
-
-# # 1. Ricevere i dati di un cliente.
-# # 2. Applicare la pipeline salvata (xgb_final.joblib), che include già il preprocessing.
-# # 3. Calcolare la probabilità di churn.
-# # 4. Applicare la soglia 0.35.
-# # 5. Restituire un risultato strutturato.
-# #    Il preprocessing rimane nella pipeline: non dobbiamo riscrivere l'One-Hot Encoding in Lambda.
-
-
 # # Realizziamo una funzione Python indipendente da AWS, così possiamo verificarla localmente prima di introdurre il formato richiesto dal container SageMaker.
 
 import json
@@ -17,9 +7,9 @@ import joblib
 import pandas as pd
 
 
-BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "models" / "xgb_final.joblib"
-THRESHOLD_PATH = BASE_DIR / "models" / "threshold.json"
+BASE_DIR = Path.cwd() #Path(__file__).resolve().parent
+MODEL_PATH = BASE_DIR / "artifacts" / "xgb_final.joblib"
+THRESHOLD_PATH = BASE_DIR / "artifacts" / "threshold.json"
 
 
 def load_artifacts():

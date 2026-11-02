@@ -3,8 +3,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from ml.dataset import df_analysis, X, y, numeric_features, binary_features, categorical_features
-from dataset import df_analysis, X
-from ml.preprocessing import make_categorical_encoder, make_preprocessor
+from ml.preprocessing import make_preprocessor
 from ml.data_split import X_train, X_test, y_train, y_test
 # dal roth path, esegui  python -m ml.models.xgboost_model.py per esegurire il run della pagina
 
@@ -24,6 +23,7 @@ print(X.columns.tolist()) # crea un list/array delle colonne di X. Id e' stato t
 print("\n--- Target ---")
 print(y.name)
 
+# ----------
 
 # Pulizia e tipizzazione delle feature
 # Partiamo da X, non da df_analysis, perché abbiamo già separato target e identificatore.
@@ -83,7 +83,6 @@ from sklearn.preprocessing import OneHotEncoder
 # --------------
 
 # Costruire il ColumnTransformer. Fondamentale per la Pipeline che andremo a creare
-
 from sklearn.compose import ColumnTransformer
 
 preprocessor = make_preprocessor(numeric_features, binary_features, categorical_features) # preprocessing.py import
@@ -213,8 +212,8 @@ cv = StratifiedKFold(
 # Ricordiamo che La pipeline applica il preprocessing e poi addestra XGBoost
 
 from sklearn.base import clone # non modifichiamo ripetutamente la pipeline, creiamo invece una nuova pipeline per ogni configurazione, riutilizzando il preprocessor.
-# l'import clone(preprocessor), fa' in modo che il preprocessor sia riutilizzabile, facendo 'dimenticare' al preprocessor i precedenti fit.transform del train set. 
-# Questo evita data leakage
+# clone(preprocessor), fa' in modo che il preprocessor sia riutilizzabile, facendo 'dimenticare' al preprocessor i precedenti fit.transform del train set. 
+# Quindi possiamo riutilizzare il preprocessor senza correre rischi di data leakage. 
 
 
 xgb_pipeline = Pipeline([
@@ -481,7 +480,6 @@ print(threshold_df.round(4).to_string(index=False))
 # ------
 # ------
 
-# Applichiamo la soglia candidata al test set:
 
 # Condizioni: Recall almeno del 70%, cercando di contenere gli FP
 
@@ -497,7 +495,7 @@ print(threshold_candidates.round(4).to_string(index=False))
 # ancora La soglia 0.35 offre miglior trade-off 
 
 # -------
-# valutare la soglia selezionata su test set
+# Applichiamo la soglia favorita al test set:
 
 # Probabilità di churn sul test set
 y_test_proba = xgb_final.predict_proba(X_test)[:, 1]
@@ -1213,11 +1211,13 @@ print("Verifica superata: probabilità coerenti.")
 
 # Testiamo una predizione su una riga del test set originale.
 
-sample_customer = X_test.iloc[0].to_dict()
-print(sample_customer)
+# sample_customer = X_test.iloc[0].to_dict()
+# print(sample_customer)
 
 
-from ml.inference import predict_customer
+# from ml.inference import predict_customer
 
-result = predict_customer(sample_customer)
-print(result)
+# result = predict_customer(sample_customer)
+# print(result)
+
+
