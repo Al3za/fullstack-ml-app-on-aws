@@ -1,8 +1,22 @@
+# import pandas as pd
+
+# # Carica dataset
+
+# DATA_PATH = "../data/WA_Fn-UseC_-Telco-Customer-Churn.csv"
+
 import pandas as pd
+from pathlib import Path
 
-# Carica dataset
+# Percorso assoluto della root del progetto
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-DATA_PATH = "../data/WA_Fn-UseC_-Telco-Customer-Churn.csv"
+# Percorso del dataset
+DATA_PATH = (
+    PROJECT_ROOT
+    / "data"
+    / "WA_Fn-UseC_-Telco-Customer-Churn.csv"
+)
+
 
 df_analysis = pd.read_csv(DATA_PATH)
 

@@ -507,7 +507,7 @@ In this plot:
 For numerical features such as `tenure`, red represents higher numerical values and blue represents lower values. For One-Hot Encoded categorical features, red corresponds to the dummy value being 1, while blue corresponds to 0.
 
 plot:
-![alt text](../ml/models/pics/image17.png)
+![alt text](pics/image.png)
 
 The observed patterns were:
 
