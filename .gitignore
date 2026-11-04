@@ -9,7 +9,7 @@ node_modules/
 # Local datasets
 data/
 
-# ml data understanding notes
+# ML notes
 __pycache__/
 ml/inference.md
 ml/.venv
@@ -23,12 +23,15 @@ ml/machine_learning.md
 ml/models/artifacts
 after_ml_local_dev_is_done
 
+# SageMaker Notes
+sagemaker/training/sagemaker_tasks
+
 # OS
 .DS_Store
 
 # txt and md files
 /Fullstack ml aws app workflow
-/infra/s3/main-tf-info.md
+/infra/aws/terraform-info
 
 
 # Build output
@@ -45,6 +48,8 @@ out/
 *.tfvars.json
 crash.log
 crash.*.log
+
+run_training.md
 
 # Terraform lock file
 # DO NOT ignore .terraform.lock.hcl
