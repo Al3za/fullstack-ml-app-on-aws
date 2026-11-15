@@ -23,7 +23,7 @@ from sagemaker.train.configs import SourceCode
 
 # Configurazione dei percorsi e lettura dei dati
 
-# Con SourceCode inviamo il codice sorgente locale ad AWS, in modo che il container possa eseguire train.py e trovare i moduli necessari cosi' come qui' in locale
+# Con SourceCode inviamo il codice sorgente locale su AWS, in modo che il container possa eseguire train.py e trovare i moduli necessari cosi' come qui' in locale
 SourceCode(
     source_dir="sagemaker/training", # Cartella locale contenente il codice da inviare
     entry_script="train.py", # Script principale da eseguire
@@ -33,11 +33,12 @@ SourceCode(
 
 TRAINING_DIR = os.environ.get(
     "SM_CHANNEL_TRAIN", # SageMaker legge il CSV dalla cartella di input del container, tramite la variabile SM_CHANNEL_TRAIN
-    "/opt/ml/input/data/train"# Il file sistem path del container Docker avviato da Sagemaker che contiene i dati di train presi da s3 (il dataset Teleco che abbiamo caricato precedentemente con boto3). 
+    "/opt/ml/input/data/train"# Il path interno del container Docker avviato da Sagemaker che contiene il file con i dati di train presi da s3 (il dataset Teleco che abbiamo caricato precedentemente con boto3). 
 )
 
-MODEL_DIR = "/opt/ml/model" # Al termine del training, SageMaker raccoglie gli artefatti salvati in questa directory e li carica su S3 per poter fare inference.
 
+MODEL_DIR = "/opt/ml/model" # Al termine del training, SageMaker raccoglie gli artefatti salvati in questa directory del sistema interno dell ambiente docker, e li carica su S3 per poter fare inference.
+# li troviamo su "model.tar.gz"
 
 # Soglia decisionale selezionata durante il tuning locale
 THRESHOLD = 0.35
@@ -46,7 +47,7 @@ THRESHOLD = 0.35
 # Aggiungiamo la funzione di caricamento
 
 
-# Dataset gia' analizato in locale. Qui si effetuano solo le stesse trasformazioni dati per l'allenamento su sagemaker
+# Dataset gia' analizato in locale. Qui si effetuano solo le stesse trasformazioni dati fatte in locale per fare l'allenamento su sagemaker
 
 def load_training_data():
 
@@ -149,7 +150,6 @@ def build_model():
 
 # Training e salvataggio del modello
 
-
 def train_model():
 
     # Carichiamo i dati di train
@@ -170,7 +170,7 @@ def train_model():
 
 
 # ---
-# Funzione per salvare gli artefatti 
+# Funzione per salvare gli artefatti (model.tar.gz)
 
 def save_artifacts(model):
 
