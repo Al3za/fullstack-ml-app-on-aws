@@ -61,9 +61,10 @@ print("SageMaker session initialized.")
 training_image = image_uris.retrieve(
     framework="sklearn",
     region=REGION,
-    version="1.9-0",
+    version="1.9-0", # versione del container/image che piu' si avvicina alle versioni delle dipendenze usate durante lo sviluppo del modello in locale
     image_scope="training",
-    instance_type="ml.m5.large"
+    instance_type="ml.m5.large" # il tipo di server virtuale AWS su cui SageMaker esegue il container che addestra il 
+    # tuo modello XGBoost. (in questa istanza sono disponibili: 2 vCPU, 8 GB di RAM, e viene utilizzata per il modelli ml come suggerito nel nome). "Il container è il software che gira sul server e processa il training del modello; l'istanza ml.m5.large fornisce CPU e memoria." 
 )
 
 print("Training image:")
@@ -95,7 +96,7 @@ source_code = SourceCode(
 # --------------------------------------------------
 
 compute = Compute(
-    instance_type="ml.m5.large",
+    instance_type="ml.m5.large", # il tipo di server virtuale AWS su cui SageMaker esegue il container che addestra il tuo modello XGBoost. (in questa istanza sono disponibili: 2 vCPU, 8 GB di RAM, e viene utilizzata per il modelli ml come suggerito nel nome). "Il container è il software che gira sul server e processa il training del modello; l'istanza ml.m5.large fornisce CPU e memoria." 
     instance_count=1
 )
 
@@ -122,11 +123,11 @@ trainer = ModelTrainer(
     source_code=source_code,
     compute=compute,
     base_job_name="telco-churn-training",
-    output_data_config=OutputDataConfig( # Specifichiamo dove salvare gli artefatti. (OutputDataConfig serve per compatibilita' della tipizazzione sdk ed evitare problemi di validazione)
+    output_data_config=OutputDataConfig( # Specifichiamo dove salvare gli artefatti(la ipeline ml) in aws una volta compiuto il training. (OutputDataConfig serve per compatibilita' della tipizazzione sdk ed evitare problemi di validazione)
     s3_output_path=f"s3://{BUCKET_NAME}/sagemaker/output"
     ),
     stopping_condition=StoppingCondition(
-    max_runtime_in_seconds=1800 # limite massimo di 30 minuti per il training job
+    max_runtime_in_seconds=1800 # limite massimo di 30 minuti per il training job. Questo evita che il training possa restare avviato troppo a lungo a causa di un eventuale errore, potendo portare il training a costi elevati
     )
 )
 
@@ -143,7 +144,9 @@ if __name__ == "__main__":
         input_data_config=[train_input], # inizializiamo il training
         wait=True,
         logs=True,
-        dry_run=True # serve a verificare come SageMaker SDK prepara il training job, senza avviare effettivamente un'istanza ml.m5.large. (ottimo per avviare un test e vedere se ci sono problemi di compatibilita' durante il training)
+        dry_run=False # serve a verificare come SageMaker SDK prepara il training job, senza avviare effettivamente un'istanza ml.m5.large. (ottimo per avviare un test e vedere se ci sono problemi di compatibilita' durante il training)
     )
 
-    print("Dry run completed successfully.")
+    print("SageMaker training job completed successfully.")
+
+    # print("Dry run completed successfully.")
