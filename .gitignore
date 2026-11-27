@@ -49,7 +49,7 @@ out/
 crash.log
 crash.*.log
 
-run_training.md
+run_training
 
 # Terraform lock file
 # DO NOT ignore .terraform.lock.hcl

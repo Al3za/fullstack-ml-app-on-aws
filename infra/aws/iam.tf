@@ -48,7 +48,6 @@ resource "aws_iam_role_policy" "sagemaker_s3_access" {
   })
 }
 
-
 resource "aws_iam_role_policy" "sagemaker_training_permissions" {
   name = "ml-fullstack-sagemaker-training-permissions"
   role = aws_iam_role.sagemaker_execution_role.id
@@ -88,6 +87,44 @@ resource "aws_iam_role_policy" "sagemaker_training_permissions" {
         ]
         Resource = "*"
       },
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "sagemaker_cloudwatch_logs" {
+  name = "sagemaker-cloudwatch-logs"
+  role = aws_iam_role.sagemaker_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+
+    Statement = [
+      {
+        Sid    = "DescribeLogGroups"
+        Effect = "Allow"
+
+        Action = [
+          "logs:DescribeLogGroups"
+        ]
+
+        Resource = "*"
+      },
+      {
+        Sid    = "ManageTrainingLogs"
+        Effect = "Allow"
+
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:DescribeLogStreams",
+          "logs:PutLogEvents"
+        ]
+
+        Resource = [
+          "arn:aws:logs:eu-central-1:*:log-group:/aws/sagemaker/TrainingJobs",
+          "arn:aws:logs:eu-central-1:*:log-group:/aws/sagemaker/TrainingJobs:*"
+        ]
+      }
     ]
   })
 }

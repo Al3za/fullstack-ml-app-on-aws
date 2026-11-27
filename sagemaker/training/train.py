@@ -1,6 +1,3 @@
-
-# # Inseriamo gli import e la configurazione.
-
 import json
 import os
 
@@ -16,18 +13,6 @@ from feature_config import (
     numeric_features,
     binary_features,
     categorical_features
-)
-
-from sagemaker.train.configs import SourceCode
-
-
-# Configurazione dei percorsi e lettura dei dati
-
-# Con SourceCode inviamo il codice sorgente locale su AWS, in modo che il container possa eseguire train.py e trovare i moduli necessari cosi' come qui' in locale
-SourceCode(
-    source_dir="sagemaker/training", # Cartella locale contenente il codice da inviare
-    entry_script="train.py", # Script principale da eseguire
-    requirements="requirements.txt" # File con le dipendenze Python da installare
 )
 
 
