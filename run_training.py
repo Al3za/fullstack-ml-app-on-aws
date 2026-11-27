@@ -1,3 +1,5 @@
+# run_training.py — Ambiente locale
+# Orchestrazione del training
 
 from sagemaker.core import image_uris
 from sagemaker.core.helper.session_helper import Session
@@ -31,7 +33,7 @@ DATASET_URI = (
 # Invochiamo l'ARN del ruolo IAM di SageMaker con boto3 per evitare di scrivere l'arn nel file
 account_id = boto3.client("sts").get_caller_identity()["Account"]
 
-ROLE_ARN = (
+ROLE_ARN = ( # Arn equivale al ruolo sagemake e alle policy "attached" ad esso. Questo gli da' "l'autorita'" di leggere da s3 il dataset, avviare un traning job, leggere logs cloudwatch ecc..
     f"arn:aws:iam::{account_id}:role/"
     "ml-fullstack-sagemaker-execution-role"
 )
@@ -76,10 +78,10 @@ print(training_image)
 # --------------------------------------------------
 
 source_code = SourceCode(
-    source_dir="sagemaker/training",
-    entry_script="train.py",
-    requirements="requirements.txt",
-       ignore_patterns=[
+    source_dir="sagemaker/training", # file paths come il locale, cosiche' l'ambiente vistuale creato da segemaker possa accedere hai files feature_config e preprocessing creando un file path cosi' come qui in locale
+    entry_script="train.py", # il file che esegue il traning in cloud
+    requirements="requirements.txt", # Sagemaker installa le dipendenze definite in questo file durante il training.
+       ignore_patterns=[ # Ignore unusefull files and docs i wrote like sagemaker_tasks, .cache
         ".env",
         ".git",
         "__pycache__",
@@ -87,7 +89,7 @@ source_code = SourceCode(
         ".cache",
         ".ipynb_checkpoints",
         "sagemaker_tasks",
-    ], # Ignore unusefull files and docs i wrote like sagemaker_tasks, .cache
+    ], 
 )
 
 
